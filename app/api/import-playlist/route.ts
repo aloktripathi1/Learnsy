@@ -3,6 +3,8 @@ import { auth } from '@clerk/nextjs/server'
 import { extractPlaylistId, fetchPlaylistData, validatePlaylistUrl } from "@/lib/youtube-server"
 import { DatabaseService } from "@/lib/database"
 
+export const dynamic = 'force-dynamic'
+
 const MAX_PLAYLISTS_PER_USER = 4
 
 export async function POST(request: NextRequest) {
