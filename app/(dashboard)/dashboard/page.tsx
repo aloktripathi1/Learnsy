@@ -42,17 +42,16 @@ export default function DashboardPage() {
   })
   const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null)
   const [courseToDelete, setCourseToDelete] = useState<any | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
-    if (user && hasSupabase) {
+    if (user) {
       loadData()
     }
-  }, [user, hasSupabase])
+  }, [user])
 
   const calculateStreak = async () => {
-    if (!user || !hasSupabase) return 0
+    if (!user) return 0
 
     try {
       const { DatabaseService } = await import("@/lib/database")
@@ -106,7 +105,7 @@ export default function DashboardPage() {
   }
 
   const loadData = async () => {
-    if (!user || !hasSupabase) return
+    if (!user) return
 
     try {
       const { DatabaseService } = await import("@/lib/database")
@@ -176,10 +175,9 @@ export default function DashboardPage() {
       window.removeEventListener("bookmarksUpdated", handleBookmarksUpdate)
       window.removeEventListener("progressUpdated", handleProgressUpdate)
     }
-  }, [user, hasSupabase])
+  }, [user])
 
   const resumeCourse = async (course: any) => {
-    if (!hasSupabase) return
 
     try {
       const { DatabaseService } = await import("@/lib/database")
@@ -203,7 +201,7 @@ export default function DashboardPage() {
   }
 
   const deleteCourse = async (course: any) => {
-    if (!user || !hasSupabase) return
+    if (!user) return
 
     setDeletingCourseId(course.id)
 
