@@ -18,7 +18,7 @@ import {
   Menu,
   X,
 } from "lucide-react"
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/lib/auth"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function HomePage() {

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/lib/auth"
 import { DatabaseService } from "@/lib/database"
 
 interface YouTubePlayerProps {

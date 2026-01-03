@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { FileText, Search, Edit3, Trash2, Save, X, Play, Clock, BookOpen } from "lucide-react"
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/lib/auth"
 import { DatabaseService } from "@/lib/database"
 
 interface NoteItem {

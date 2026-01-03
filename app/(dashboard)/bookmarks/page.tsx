@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Bookmark, Search, Play, Trash2, Clock } from "lucide-react"
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/lib/auth"
 import { DatabaseService } from "@/lib/database"
 
 interface BookmarkItem {

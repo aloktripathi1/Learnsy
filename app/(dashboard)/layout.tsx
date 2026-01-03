@@ -7,7 +7,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts"
 import { MobileNav } from "@/components/mobile-nav"
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/lib/auth"
 
 export default function DashboardLayout({
   children,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
 import { extractPlaylistId, fetchPlaylistData, validatePlaylistUrl } from "@/lib/youtube-server"
 import { DatabaseService } from "@/lib/database"
 
@@ -6,16 +7,25 @@ const MAX_PLAYLISTS_PER_USER = 4
 
 export async function POST(request: NextRequest) {
   try {
-    const { playlistUrl, userId } = await request.json()
+    const { userId } = auth()
+    
+    if (!userId) {
+      return NextResponse.json({
+        success: false,
+        error: "Unauthorized",
+      }, { status: 401 })
+    }
+
+    const { playlistUrl } = await request.json()
 
     console.log("Starting playlist import for user:", userId)
     console.log("Playlist URL:", playlistUrl)
 
     // Validate inputs
-    if (!playlistUrl || !userId) {
+    if (!playlistUrl) {
       return NextResponse.json({
         success: false,
-        error: "Missing required information. Please try again.",
+        error: "Missing playlist URL. Please try again.",
       }, { status: 400 })
     }
 

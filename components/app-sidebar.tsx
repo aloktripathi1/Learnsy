@@ -3,7 +3,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { BookOpen, Bookmark, Home, StickyNote, Play, Moon, Sun, LogOut, User, Menu, X } from "lucide-react"
 import { useTheme } from "next-themes"
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/lib/auth"
 import { useState, useEffect } from "react"
 
 import {

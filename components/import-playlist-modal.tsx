@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { PlaylistUrlInput } from "@/components/playlist-url-input"
 import { Plus, AlertCircle, CheckCircle, X } from "lucide-react"
-import { importPlaylistAction } from "@/app/actions/youtube"
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/lib/auth"
 
 interface ImportPlaylistModalProps {
   onSuccess?: () => void
@@ -63,7 +62,13 @@ export function ImportPlaylistModal({
 
     try {
       console.log("Starting import process...")
-      const result = await importPlaylistAction(playlistUrl, user.id)
+      const response = await fetch('/api/import-playlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playlistUrl })
+      })
+      
+      const result = await response.json()
 
       if (result.success) {
         console.log("Import successful!")

@@ -8,10 +8,10 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { BookOpen, Play, Search, Clock, CheckCircle, Trash2, MoreHorizontal, Plus } from "lucide-react"
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/lib/auth"
 import { DatabaseService } from "@/lib/database"
 import { checkPlaylistLimit } from "@/app/actions/youtube"
-import type { Course } from "@/lib/supabase"
+import type { Course } from "@/lib/db"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
   AlertDialog,

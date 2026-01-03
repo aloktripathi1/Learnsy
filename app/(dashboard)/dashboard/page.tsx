@@ -8,7 +8,7 @@ import { BookOpen, Bookmark, Calendar, Play, TrendingUp, Clock, Target, AlertCir
 import { StreakCalendar } from "@/components/streak-calendar"
 import { DailyReminder } from "@/components/daily-reminder"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/lib/auth"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { checkPlaylistLimit } from "@/app/actions/youtube"
 import { Trash2, MoreHorizontal } from "lucide-react"

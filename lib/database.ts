@@ -1,323 +1,297 @@
 import {
-  supabase,
-  isSupabaseConfigured,
+  sql,
+  isDatabaseConfigured,
   type Course,
   type Video,
   type UserProgress,
   type StreakActivity,
-} from "./supabase"
+  type VideoTimestamp,
+  type User,
+} from "./db"
 
-export interface VideoTimestamp {
-  user_id: string
-  video_id: string
-  timestamp: number
-  duration: number
-  updated_at: string
-}
+export { type Course, type Video, type UserProgress, type StreakActivity, type VideoTimestamp }
 
 export class DatabaseService {
-  private static checkSupabase() {
-    if (!isSupabaseConfigured() || !supabase) {
-      throw new Error("Supabase is not configured. Please check your environment variables.")
+  private static checkDatabase() {
+    if (!isDatabaseConfigured() || !sql) {
+      throw new Error("Database is not configured. Please check your DATABASE_URL environment variable.")
     }
-    return supabase
+    return sql
+  }
+
+  // Users
+  static async upsertUser(user: { id: string; email: string; name?: string; image_url?: string }): Promise<User> {
+    const db = this.checkDatabase()
+    console.log("Upserting user:", user.id)
+    
+    const result = await db`
+      INSERT INTO users (id, email, name, image_url)
+      VALUES (${user.id}, ${user.email}, ${user.name || null}, ${user.image_url || null})
+      ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        name = EXCLUDED.name,
+        image_url = EXCLUDED.image_url,
+        updated_at = NOW()
+      RETURNING *
+    `
+    
+    if (!result || result.length === 0) {
+      throw new Error("Failed to upsert user")
+    }
+    
+    console.log("User upserted successfully")
+    return result[0] as User
   }
 
   // Courses
   static async getCourses(userId: string): Promise<Course[]> {
-    const client = this.checkSupabase()
+    const db = this.checkDatabase()
     console.log("Getting courses for user:", userId)
-    const { data, error } = await client
-      .from("courses")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-
-    if (error) {
-      console.error("Error fetching courses:", error)
-      throw new Error(`Failed to fetch courses: ${error.message}`)
-    }
-
-    console.log(`Retrieved ${data?.length || 0} courses`)
-    return data || []
+    
+    const courses = await db`
+      SELECT * FROM courses
+      WHERE user_id = ${userId}
+      ORDER BY created_at DESC
+    `
+    
+    console.log(`Retrieved ${courses.length} courses`)
+    return courses as Course[]
   }
 
   static async createCourse(course: Omit<Course, "id" | "created_at" | "updated_at">): Promise<Course> {
-    const client = this.checkSupabase()
+    const db = this.checkDatabase()
     console.log("Creating course:", course)
-    const { data, error } = await client.from("courses").insert(course).select().single()
-
-    if (error) {
-      console.error("Error creating course:", error)
-      throw new Error(`Failed to create course: ${error.message}`)
+    
+    const result = await db`
+      INSERT INTO courses (user_id, playlist_id, title, thumbnail, video_count)
+      VALUES (${course.user_id}, ${course.playlist_id}, ${course.title}, ${course.thumbnail}, ${course.video_count})
+      RETURNING *
+    `
+    
+    if (!result || result.length === 0) {
+      throw new Error("Failed to create course")
     }
-
-    if (!data) {
-      throw new Error("No data returned after creating course")
-    }
-
-    console.log("Course created successfully:", data.id)
-    return data
+    
+    console.log("Course created successfully:", result[0].id)
+    return result[0] as Course
   }
 
   static async deleteCourse(courseId: string): Promise<void> {
-    const client = this.checkSupabase()
+    const db = this.checkDatabase()
     console.log("Deleting course:", courseId)
-    const { error } = await client.from("courses").delete().eq("id", courseId)
-
-    if (error) {
-      console.error("Error deleting course:", error)
-      throw new Error(`Failed to delete course: ${error.message}`)
-    }
-
+    
+    await db`
+      DELETE FROM courses WHERE id = ${courseId}
+    `
+    
     console.log("Course deleted successfully")
   }
 
   // Videos
   static async getVideos(courseId: string): Promise<Video[]> {
-    const client = this.checkSupabase()
+    const db = this.checkDatabase()
     console.log("Getting videos for course:", courseId)
-    const { data, error } = await client
-      .from("videos")
-      .select("*")
-      .eq("course_id", courseId)
-      .order("position", { ascending: true })
-
-    if (error) {
-      console.error("Error fetching videos:", error)
-      throw new Error(`Failed to fetch videos: ${error.message}`)
-    }
-
-    console.log(`Retrieved ${data?.length || 0} videos`)
-    return data || []
+    
+    const videos = await db`
+      SELECT * FROM videos
+      WHERE course_id = ${courseId}
+      ORDER BY position ASC
+    `
+    
+    console.log(`Retrieved ${videos.length} videos`)
+    return videos as Video[]
   }
 
   static async createVideos(videos: Omit<Video, "id" | "created_at">[]): Promise<Video[]> {
-    const client = this.checkSupabase()
+    const db = this.checkDatabase()
     console.log(`Creating ${videos.length} videos`)
-
-    // Insert videos in batches to avoid potential payload size limits
-    const batchSize = 50
+    
     const results: Video[] = []
-
+    
+    // Insert videos in batches to avoid payload size limits
+    const batchSize = 50
     for (let i = 0; i < videos.length; i += batchSize) {
       const batch = videos.slice(i, i + batchSize)
       console.log(`Inserting batch ${i / batchSize + 1} with ${batch.length} videos`)
-
-      const { data, error } = await client.from("videos").insert(batch).select()
-
-      if (error) {
-        console.error("Error creating videos batch:", error)
-        throw new Error(`Failed to create videos: ${error.message}`)
-      }
-
-      if (data) {
-        results.push(...data)
+      
+      for (const video of batch) {
+        const result = await db`
+          INSERT INTO videos (course_id, video_id, title, thumbnail, duration, position)
+          VALUES (${video.course_id}, ${video.video_id}, ${video.title}, ${video.thumbnail || null}, ${video.duration || null}, ${video.position})
+          RETURNING *
+        `
+        results.push(result[0] as Video)
       }
     }
-
+    
     console.log(`Successfully created ${results.length} videos`)
     return results
   }
 
   // User Progress
   static async getUserProgress(userId: string, videoId?: string): Promise<UserProgress[]> {
-    const client = this.checkSupabase()
+    const db = this.checkDatabase()
     console.log("Getting user progress for user:", userId, videoId ? `and video: ${videoId}` : "")
-    let query = client.from("user_progress").select("*").eq("user_id", userId)
-
+    
+    let progress
     if (videoId) {
-      query = query.eq("video_id", videoId)
+      progress = await db`
+        SELECT * FROM user_progress
+        WHERE user_id = ${userId} AND video_id = ${videoId}
+      `
+    } else {
+      progress = await db`
+        SELECT * FROM user_progress
+        WHERE user_id = ${userId}
+      `
     }
-
-    const { data, error } = await query
-    if (error) {
-      console.error("Error fetching user progress:", error)
-      throw new Error(`Failed to fetch user progress: ${error.message}`)
-    }
-
-    console.log(`Retrieved ${data?.length || 0} progress records`)
-    return data || []
+    
+    console.log(`Retrieved ${progress.length} progress records`)
+    return progress as UserProgress[]
   }
 
   static async updateProgress(
     progress: Partial<UserProgress> & { user_id: string; video_id: string },
   ): Promise<UserProgress | null> {
-    const client = this.checkSupabase()
+    const db = this.checkDatabase()
     console.log("Updating progress:", progress)
-    const { data, error } = await client
-      .from("user_progress")
-      .upsert(
-        {
-          ...progress,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,video_id" },
+    
+    const result = await db`
+      INSERT INTO user_progress (user_id, video_id, completed, bookmarked, notes, completed_at)
+      VALUES (
+        ${progress.user_id},
+        ${progress.video_id},
+        ${progress.completed ?? false},
+        ${progress.bookmarked ?? false},
+        ${progress.notes || null},
+        ${progress.completed_at || null}
       )
-      .select()
-      .single()
-
-    if (error) {
-      console.error("Error updating progress:", error)
-      throw new Error(`Failed to update progress: ${error.message}`)
-    }
-
+      ON CONFLICT (user_id, video_id) DO UPDATE SET
+        completed = EXCLUDED.completed,
+        bookmarked = EXCLUDED.bookmarked,
+        notes = EXCLUDED.notes,
+        completed_at = EXCLUDED.completed_at,
+        updated_at = NOW()
+      RETURNING *
+    `
+    
     console.log("Progress updated successfully")
-    return data
+    return result[0] as UserProgress
   }
 
   // Streak Activity
   static async getStreakActivity(userId: string): Promise<StreakActivity[]> {
-    const client = this.checkSupabase()
+    const db = this.checkDatabase()
     console.log("Getting streak activity for user:", userId)
-    const { data, error } = await client
-      .from("streak_activity")
-      .select("*")
-      .eq("user_id", userId)
-      .order("date", { ascending: true })
-
-    if (error) {
-      console.error("Error fetching streak activity:", error)
-      throw new Error(`Failed to fetch streak activity: ${error.message}`)
-    }
-
-    console.log(`Retrieved ${data?.length || 0} streak records`)
-    return data || []
+    
+    const streaks = await db`
+      SELECT * FROM streak_activity
+      WHERE user_id = ${userId}
+      ORDER BY date ASC
+    `
+    
+    console.log(`Retrieved ${streaks.length} streak records`)
+    return streaks as StreakActivity[]
   }
 
   static async updateStreakActivity(userId: string, date: string): Promise<void> {
-    const client = this.checkSupabase()
+    const db = this.checkDatabase()
     console.log("Updating streak activity for user:", userId, "date:", date)
-    const { error } = await client.from("streak_activity").upsert(
-      {
-        user_id: userId,
-        date,
-        videos_watched: 1,
-      },
-      {
-        onConflict: "user_id,date",
-        ignoreDuplicates: false,
-      },
-    )
-
-    if (error) {
-      console.error("Error updating streak activity:", error)
-      throw new Error(`Failed to update streak activity: ${error.message}`)
-    }
-
+    
+    await db`
+      INSERT INTO streak_activity (user_id, date, videos_watched)
+      VALUES (${userId}, ${date}, 1)
+      ON CONFLICT (user_id, date) DO UPDATE SET
+        videos_watched = streak_activity.videos_watched + 1
+    `
+    
     console.log("Streak activity updated successfully")
   }
 
   // Bookmarks
   static async getBookmarks(userId: string): Promise<any[]> {
-    const client = this.checkSupabase()
+    const db = this.checkDatabase()
     console.log("Getting bookmarks for user:", userId)
-
-    const { data, error } = await client
-      .from("user_progress")
-      .select(`
-        id,
-        user_id,
-        video_id,
-        bookmarked,
-        notes,
-        updated_at,
-        videos!inner (
-          id,
-          video_id,
-          title,
-          thumbnail,
-          duration,
-          courses!inner (
-            id,
-            title
+    
+    const bookmarks = await db`
+      SELECT 
+        up.id,
+        up.user_id,
+        up.video_id,
+        up.bookmarked,
+        up.notes,
+        up.updated_at,
+        json_build_object(
+          'id', v.id,
+          'video_id', v.video_id,
+          'title', v.title,
+          'thumbnail', v.thumbnail,
+          'duration', v.duration,
+          'courses', json_build_object(
+            'id', c.id,
+            'title', c.title
           )
-        )
-      `)
-      .eq("user_id", userId)
-      .eq("bookmarked", true)
-
-    if (error) {
-      console.error("Error fetching bookmarks:", error)
-      throw new Error(`Failed to fetch bookmarks: ${error.message}`)
-    }
-
-    // Additional filtering to ensure data integrity
-    const validBookmarks = (data || []).filter(
-      (bookmark) => bookmark.bookmarked === true && bookmark.videos && bookmark.videos.courses,
-    )
-
-    console.log(`Retrieved ${validBookmarks.length} valid bookmarks out of ${data?.length || 0} total records`)
-    return validBookmarks
+        ) as videos
+      FROM user_progress up
+      INNER JOIN videos v ON up.video_id = v.video_id
+      INNER JOIN courses c ON v.course_id = c.id
+      WHERE up.user_id = ${userId} AND up.bookmarked = true
+    `
+    
+    console.log(`Retrieved ${bookmarks.length} bookmarks`)
+    return bookmarks
   }
 
   // Notes
   static async getNotes(userId: string): Promise<any[]> {
-    const client = this.checkSupabase()
+    const db = this.checkDatabase()
     console.log("Getting notes for user:", userId)
-
-    const { data, error } = await client
-      .from("user_progress")
-      .select(`
-        id,
-        user_id,
-        video_id,
-        bookmarked,
-        notes,
-        updated_at,
-        videos!inner (
-          id,
-          video_id,
-          title,
-          thumbnail,
-          duration,
-          courses!inner (
-            id,
-            title
+    
+    const notes = await db`
+      SELECT 
+        up.id,
+        up.user_id,
+        up.video_id,
+        up.bookmarked,
+        up.notes,
+        up.updated_at,
+        json_build_object(
+          'id', v.id,
+          'video_id', v.video_id,
+          'title', v.title,
+          'thumbnail', v.thumbnail,
+          'duration', v.duration,
+          'courses', json_build_object(
+            'id', c.id,
+            'title', c.title
           )
-        )
-      `)
-      .eq("user_id", userId)
-      .not("notes", "is", null)
-      .neq("notes", "")
-
-    if (error) {
-      console.error("Error fetching notes:", error)
-      throw new Error(`Failed to fetch notes: ${error.message}`)
-    }
-
-    // Additional filtering to ensure data integrity
-    const validNotes = (data || []).filter(
-      (note) => note.notes && note.notes.trim() !== "" && note.videos && note.videos.courses,
-    )
-
-    console.log(`Retrieved ${validNotes.length} valid notes out of ${data?.length || 0} total records`)
-    return validNotes
+        ) as videos
+      FROM user_progress up
+      INNER JOIN videos v ON up.video_id = v.video_id
+      INNER JOIN courses c ON v.course_id = c.id
+      WHERE up.user_id = ${userId} AND up.notes IS NOT NULL AND up.notes != ''
+    `
+    
+    console.log(`Retrieved ${notes.length} notes`)
+    return notes
   }
 
-  // Video Timestamps - NEW METHODS FOR RESUME FEATURE
+  // Video Timestamps
   static async getVideoTimestamp(userId: string, videoId: string): Promise<VideoTimestamp | null> {
-    const client = this.checkSupabase()
+    const db = this.checkDatabase()
     console.log("Getting video timestamp for user:", userId, "video:", videoId)
-
-    const { data, error } = await client
-      .from("video_timestamps")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("video_id", videoId)
-      .single()
-
-    if (error) {
-      if (error.code === "PGRST116") {
-        // No timestamp found, return null
-        return null
-      }
-      console.error("Error fetching video timestamp:", error)
-      throw new Error(`Failed to fetch video timestamp: ${error.message}`)
+    
+    const result = await db`
+      SELECT * FROM video_timestamps
+      WHERE user_id = ${userId} AND video_id = ${videoId}
+    `
+    
+    if (result.length === 0) {
+      return null
     }
-
-    console.log("Retrieved timestamp:", data?.timestamp)
-    return data
+    
+    console.log("Retrieved timestamp:", result[0].timestamp)
+    return result[0] as VideoTimestamp
   }
 
   static async updateVideoTimestamp(
@@ -326,81 +300,55 @@ export class DatabaseService {
     timestamp: number,
     duration: number,
   ): Promise<void> {
-    const client = this.checkSupabase()
+    const db = this.checkDatabase()
     console.log("Updating video timestamp:", { userId, videoId, timestamp, duration })
-
-    const { error } = await client.from("video_timestamps").upsert(
-      {
-        user_id: userId,
-        video_id: videoId,
-        timestamp,
-        duration,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,video_id" },
-    )
-
-    if (error) {
-      console.error("Error updating video timestamp:", error)
-      throw new Error(`Failed to update video timestamp: ${error.message}`)
-    }
-
+    
+    await db`
+      INSERT INTO video_timestamps (user_id, video_id, timestamp, duration)
+      VALUES (${userId}, ${videoId}, ${timestamp}, ${duration})
+      ON CONFLICT (user_id, video_id) DO UPDATE SET
+        timestamp = EXCLUDED.timestamp,
+        duration = EXCLUDED.duration,
+        updated_at = NOW()
+    `
+    
     console.log("Video timestamp updated successfully")
   }
 
-  // Course Deletion
+  // Course Deletion with Related Data
   static async deleteCourseWithRelatedData(courseId: string, userId: string): Promise<void> {
-    const client = this.checkSupabase()
+    const db = this.checkDatabase()
     console.log("Deleting course and related data:", courseId)
-
+    
     try {
-      // Get all videos for this course first
+      // Get all videos for this course
       const videos = await this.getVideos(courseId)
       const videoIds = videos.map((v) => v.video_id)
-
+      
       if (videoIds.length > 0) {
         // Delete user progress for all videos in this course
-        const { error: progressError } = await client
-          .from("user_progress")
-          .delete()
-          .eq("user_id", userId)
-          .in("video_id", videoIds)
-
-        if (progressError) {
-          console.error("Error deleting user progress:", progressError)
-          throw new Error(`Failed to delete user progress: ${progressError.message}`)
-        }
-
+        await db`
+          DELETE FROM user_progress
+          WHERE user_id = ${userId} AND video_id = ANY(${videoIds})
+        `
+        
         // Delete video timestamps for all videos in this course
-        const { error: timestampError } = await client
-          .from("video_timestamps")
-          .delete()
-          .eq("user_id", userId)
-          .in("video_id", videoIds)
-
-        if (timestampError) {
-          console.error("Error deleting video timestamps:", timestampError)
-          // Don't throw error for timestamps as table might not exist yet
-          console.warn("Video timestamps deletion failed, continuing...")
-        }
+        await db`
+          DELETE FROM video_timestamps
+          WHERE user_id = ${userId} AND video_id = ANY(${videoIds})
+        `
       }
-
+      
       // Delete all videos for this course
-      const { error: videosError } = await client.from("videos").delete().eq("course_id", courseId)
-
-      if (videosError) {
-        console.error("Error deleting videos:", videosError)
-        throw new Error(`Failed to delete videos: ${videosError.message}`)
-      }
-
-      // Finally delete the course
-      const { error: courseError } = await client.from("courses").delete().eq("id", courseId).eq("user_id", userId) // Ensure user can only delete their own courses
-
-      if (courseError) {
-        console.error("Error deleting course:", courseError)
-        throw new Error(`Failed to delete course: ${courseError.message}`)
-      }
-
+      await db`
+        DELETE FROM videos WHERE course_id = ${courseId}
+      `
+      
+      // Finally delete the course (ensure user can only delete their own courses)
+      await db`
+        DELETE FROM courses WHERE id = ${courseId} AND user_id = ${userId}
+      `
+      
       console.log("Course and all related data deleted successfully")
     } catch (error) {
       console.error("Error in deleteCourseWithRelatedData:", error)

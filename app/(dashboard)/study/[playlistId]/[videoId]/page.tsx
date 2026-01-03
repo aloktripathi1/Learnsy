@@ -22,9 +22,9 @@ import {
   Zap,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/lib/auth"
 import { DatabaseService } from "@/lib/database"
-import type { Course, Video, UserProgress } from "@/lib/supabase"
+import type { Course, Video, UserProgress } from "@/lib/db"
 import { NotesModal } from "@/components/notes-modal"
 
 interface VideoWithProgress extends Video {

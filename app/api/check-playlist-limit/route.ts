@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
 import { DatabaseService } from "@/lib/database"
 
 const MAX_PLAYLISTS_PER_USER = 4
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
+    const { userId } = auth()
 
     if (!userId) {
       return NextResponse.json({
-        error: "User ID is required",
-      }, { status: 400 })
+        error: "Unauthorized",
+      }, { status: 401 })
     }
 
     const courses = await DatabaseService.getCourses(userId)
