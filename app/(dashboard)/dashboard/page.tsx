@@ -45,8 +45,6 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
-  const hasSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
   useEffect(() => {
     if (user && hasSupabase) {
       loadData()
@@ -238,22 +236,8 @@ export default function DashboardPage() {
         <p className="text-muted-foreground text-sm enhanced-text">Ready to continue your learning journey?</p>
       </div>
 
-      {/* Configuration Alerts */}
-      {!hasSupabase && (
-        <Alert className="mx-0 enhanced-card">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="text-sm enhanced-text">
-            <strong>Setup Required:</strong> {error}
-            <br />
-            <span className="text-sm text-muted-foreground mt-2 block">
-              Please configure your Supabase environment variables to enable authentication.
-            </span>
-          </AlertDescription>
-        </Alert>
-      )}
-
       {/* Daily Reminder - New Component */}
-      {hasSupabase && <DailyReminder courses={courses} stats={stats} />}
+      <DailyReminder courses={courses} stats={stats} />
 
       {/* Stats Cards - Enhanced */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">

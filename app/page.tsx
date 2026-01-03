@@ -24,14 +24,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 export default function HomePage() {
   const [isLoading, setIsLoading] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { signInWithGoogle, error } = useAuth()
+  const { signInWithGoogle } = useAuth()
 
   const handleSignIn = async () => {
-    if (error) {
-      alert("Authentication is not configured. Please set up Supabase environment variables.")
-      return
-    }
-
     try {
       setIsLoading(true)
       await signInWithGoogle()
@@ -134,20 +129,6 @@ export default function HomePage() {
       </nav>
 
       <div className="container mx-auto px-4">
-        {/* Configuration Error Alert */}
-        {error && (
-          <Alert className="mb-4 sm:mb-8 max-w-2xl mx-auto mt-4 sm:mt-8">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="responsive-text">
-              <strong>Setup Required:</strong> {error}
-              <br />
-              <span className="text-sm text-muted-foreground mt-2 block">
-                Please configure your Supabase environment variables to enable authentication.
-              </span>
-            </AlertDescription>
-          </Alert>
-        )}
-
         {/* Hero Section */}
         <section className="py-12 sm:py-20 text-center">
           <div className="max-w-4xl mx-auto">
@@ -166,7 +147,7 @@ export default function HomePage() {
               focused without distractions.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button onClick={handleSignIn} disabled={isLoading || !!error} size="lg" className="gap-2 touch-target">
+              <Button onClick={handleSignIn} disabled={isLoading} size="lg" className="gap-2 touch-target">
                 {isLoading ? (
                   <>
                     <div className="loading-spinner" />
