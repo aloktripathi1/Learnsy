@@ -54,8 +54,8 @@ export default function DashboardPage() {
     if (!user) return 0
 
     try {
-      const { DatabaseService } = await import("@/lib/database")
-      const streakData = await DatabaseService.getStreakActivity(user.id)
+      const { getStreakActivityAction } = await import("@/app/actions/courses")
+      const streakData = await getStreakActivityAction()
 
       if (streakData.length === 0) return 0
 
@@ -108,11 +108,11 @@ export default function DashboardPage() {
     if (!user) return
 
     try {
-      const { DatabaseService } = await import("@/lib/database")
+      const { getCoursesAction, getBookmarksAction, getUserProgressAction } = await import("@/app/actions/courses")
       const [coursesData, bookmarks, progress, limitCheck] = await Promise.all([
-        DatabaseService.getCourses(user.id),
-        DatabaseService.getBookmarks(user.id),
-        DatabaseService.getUserProgress(user.id),
+        getCoursesAction(),
+        getBookmarksAction(),
+        getUserProgressAction(),
         checkPlaylistLimit(user.id),
       ])
 
@@ -180,9 +180,9 @@ export default function DashboardPage() {
   const resumeCourse = async (course: any) => {
 
     try {
-      const { DatabaseService } = await import("@/lib/database")
-      const videos = await DatabaseService.getVideos(course.id)
-      const progress = await DatabaseService.getUserProgress(user!.id)
+      const { getVideosAction, getUserProgressAction } = await import("@/app/actions/courses")
+      const videos = await getVideosAction(course.id)
+      const progress = await getUserProgressAction()
 
       const nextVideo = videos.find((v) => {
         const videoProgress = progress.find((p) => p.video_id === v.video_id)
@@ -206,8 +206,8 @@ export default function DashboardPage() {
     setDeletingCourseId(course.id)
 
     try {
-      const { DatabaseService } = await import("@/lib/database")
-      await DatabaseService.deleteCourseWithRelatedData(course.id, user.id)
+      const { deleteCourseAction } = await import("@/app/actions/courses")
+      await deleteCourseAction(course.id)
 
       // Remove from local state
       setCourses(courses.filter((c) => c.id !== course.id))

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { BookOpen, Play, Search, Clock, CheckCircle, Trash2, MoreHorizontal, Plus } from "lucide-react"
 import { useAuth } from "@/lib/auth"
-import { DatabaseService } from "@/lib/database"
+import { getCoursesAction, getVideosAction, getUserProgressAction, deleteCourseAction } from "@/app/actions/courses"
 import { checkPlaylistLimit } from "@/app/actions/youtube"
 import type { Course } from "@/lib/db"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -60,7 +60,7 @@ export default function CoursesPage() {
     if (!user) return
 
     try {
-      const coursesData = await DatabaseService.getCourses(user.id)
+      const coursesData = await getCoursesAction()
 
       // Update courses state
       setCourses(coursesData)
@@ -96,8 +96,8 @@ export default function CoursesPage() {
 
   const continueCourse = async (course: Course) => {
     try {
-      const videos = await DatabaseService.getVideos(course.id)
-      const progress = await DatabaseService.getUserProgress(user!.id)
+      const videos = await getVideosAction(course.id)
+      const progress = await getUserProgressAction()
 
       const nextVideo = videos.find((v) => {
         const videoProgress = progress.find((p) => p.video_id === v.video_id)
@@ -121,7 +121,7 @@ export default function CoursesPage() {
     setDeletingCourseId(course.id)
 
     try {
-      await DatabaseService.deleteCourseWithRelatedData(course.id, user.id)
+      await deleteCourseAction(course.id)
 
       // Remove from local state
       setCourses(courses.filter((c) => c.id !== course.id))
@@ -291,8 +291,8 @@ function CourseCard({
     if (!user) return
 
     try {
-      const videos = await DatabaseService.getVideos(course.id)
-      const progress = await DatabaseService.getUserProgress(user.id)
+      const videos = await getVideosAction(course.id)
+      const progress = await getUserProgressAction()
 
       const completed = videos.filter((v) => {
         const videoProgress = progress.find((p) => p.video_id === v.video_id)

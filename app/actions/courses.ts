@@ -1,0 +1,75 @@
+'use server'
+
+import { DatabaseService } from '@/lib/database'
+import { ensureUserExists } from '@/lib/ensure-user'
+import type { Course, Video, UserProgress } from '@/lib/db'
+
+export async function getCoursesAction(): Promise<Course[]> {
+  const userId = await ensureUserExists()
+  
+  if (!userId) {
+    throw new Error('Unauthorized')
+  }
+  
+  return await DatabaseService.getCourses(userId)
+}
+
+export async function getVideosAction(courseId: string): Promise<Video[]> {
+  const userId = await ensureUserExists()
+  
+  if (!userId) {
+    throw new Error('Unauthorized')
+  }
+  
+  return await DatabaseService.getVideos(courseId)
+}
+
+export async function getUserProgressAction(): Promise<UserProgress[]> {
+  const userId = await ensureUserExists()
+  
+  if (!userId) {
+    throw new Error('Unauthorized')
+  }
+  
+  return await DatabaseService.getUserProgress(userId)
+}
+
+export async function deleteCourseAction(courseId: string): Promise<void> {
+  const userId = await ensureUserExists()
+  
+  if (!userId) {
+    throw new Error('Unauthorized')
+  }
+  
+  await DatabaseService.deleteCourseWithRelatedData(courseId, userId)
+}
+
+export async function getBookmarksAction() {
+  const userId = await ensureUserExists()
+  
+  if (!userId) {
+    throw new Error('Unauthorized')
+  }
+  
+  return await DatabaseService.getBookmarks(userId)
+}
+
+export async function getNotesAction() {
+  const userId = await ensureUserExists()
+  
+  if (!userId) {
+    throw new Error('Unauthorized')
+  }
+  
+  return await DatabaseService.getNotes(userId)
+}
+
+export async function getStreakActivityAction() {
+  const userId = await ensureUserExists()
+  
+  if (!userId) {
+    throw new Error('Unauthorized')
+  }
+  
+  return await DatabaseService.getStreakActivity(userId)
+}
