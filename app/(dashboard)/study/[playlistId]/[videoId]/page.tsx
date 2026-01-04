@@ -106,18 +106,27 @@ export default function StudyPage() {
     if (!user) return
 
     try {
+      console.log("Loading study data for:", { playlistId: params.playlistId, videoId: params.videoId })
+      
       const courses = await getCoursesAction()
+      console.log("Loaded courses:", courses.length)
+      
       const foundCourse = courses.find((c) => c.id === params.playlistId)
 
       if (!foundCourse) {
+        console.error("Course not found:", params.playlistId)
         router.push("/courses")
         return
       }
 
       setCourse(foundCourse)
+      console.log("Found course:", foundCourse.title)
 
       const videosData = await getVideosAction(foundCourse.id)
+      console.log("Loaded videos:", videosData.length)
+      
       const progressData = await getUserProgressAction()
+      console.log("Loaded progress data:", progressData.length)
 
       const videosWithProgress: VideoWithProgress[] = videosData.map((video) => {
         const progress = progressData.find((p) => p.video_id === video.video_id)
@@ -140,12 +149,15 @@ export default function StudyPage() {
         setOriginalNotes(videoNotes)
         setAutoCompleted(false)
         setVideoProgress(0)
+        console.log("Study data loaded successfully")
+      } else {
+        console.error("Video not found in course:", params.videoId)
       }
     } catch (error) {
       console.error("Error loading study data:", error)
       toast({
         title: "Error",
-        description: "Failed to load study data. Please try again.",
+        description: `Failed to load study data. Please try again. ${error instanceof Error ? error.message : ''}`,
         variant: "destructive",
       })
     } finally {

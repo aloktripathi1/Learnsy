@@ -86,10 +86,17 @@ export async function updateProgressAction(data: {
     throw new Error('Unauthorized')
   }
   
-  return await DatabaseService.updateProgress({
+  // Only pass the allowed fields to prevent issues
+  const updateData: any = {
     user_id: userId,
-    ...data,
-  })
+    video_id: data.video_id,
+  }
+  
+  if (data.completed !== undefined) updateData.completed = data.completed
+  if (data.bookmarked !== undefined) updateData.bookmarked = data.bookmarked
+  if (data.notes !== undefined) updateData.notes = data.notes
+  
+  return await DatabaseService.updateProgress(updateData)
 }
 
 export async function updateStreakActivityAction(date: string) {
