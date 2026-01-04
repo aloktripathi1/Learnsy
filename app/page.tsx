@@ -269,7 +269,7 @@ export default function HomePage() {
                 <p className="text-lg text-muted-foreground mb-6 sm:mb-8 responsive-text">
                   Join thousands of learners who have already improved their study habits with Learnsy.
                 </p>
-                <Button onClick={handleSignIn} disabled={isLoading || !!error} size="lg" className="gap-2 touch-target">
+                <Button onClick={handleSignIn} disabled={isLoading} size="lg" className="gap-2 touch-target">
                   {isLoading ? (
                     <>
                       <div className="loading-spinner" />
