@@ -3,7 +3,31 @@
 ## Current Status
 You're using **Clerk Test/Development Keys** which have strict usage limits and show the development banner.
 
-## Step-by-Step Production Setup
+## ⚠️ Important: Vercel.app Domain Limitation
+
+**Clerk does not allow `vercel.app` domains for production instances.** You have three options:
+
+### Option 1: Use a Custom Domain (Best for Production)
+- Purchase a domain (learnsy.com, myapp.io, etc.)
+- Add it to your Vercel project
+- Use this custom domain in Clerk production setup
+
+### Option 2: Keep Development Mode (Easiest)
+- Continue using development keys (pk_test_*, sk_test_*)
+- Works perfectly with vercel.app domains
+- Sufficient for personal projects and MVPs
+- No changes needed - your app already works!
+
+### Option 3: Use Development Keys on Production
+- Clerk allows development instances on vercel.app in production
+- Good enough for small apps and testing
+- Upgrade to custom domain + production keys when scaling
+
+**💡 Recommendation**: If this is your first deployment or MVP, **Option 2** (keep development mode) is perfectly fine. Upgrade to a custom domain later when needed.
+
+---
+
+## Step-by-Step Production Setup (Requires Custom Domain)
 
 ### 1. Create a Production Instance in Clerk
 
