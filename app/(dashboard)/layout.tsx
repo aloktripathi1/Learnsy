@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts"
 import { MobileNav } from "@/components/mobile-nav"
 import { useAuth } from "@/lib/auth"
+import { ensureUserAction } from "@/app/actions/user"
 
 export default function DashboardLayout({
   children,
@@ -23,7 +24,10 @@ export default function DashboardLayout({
       if (!user) {
         router.push("/")
       } else {
-        setIsLoading(false)
+        // Ensure user exists in database
+        ensureUserAction().then(() => {
+          setIsLoading(false)
+        })
       }
     }
   }, [user, loading, router])
