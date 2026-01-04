@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { FileText, Search, Edit3, Trash2, Save, X, Play, Clock, BookOpen } from "lucide-react"
 import { useAuth } from "@/lib/auth"
-import { DatabaseService } from "@/lib/database"
+import { getNotesAction, updateProgressAction } from "@/app/actions/courses"
 
 interface NoteItem {
   id: string
@@ -76,7 +76,7 @@ export default function NotesPage() {
 
     try {
       console.log("Loading notes for user:", user.id)
-      const notesData = await DatabaseService.getNotes(user.id)
+      const notesData = await getNotesAction()
       console.log("Raw notes data:", notesData)
 
       // Filter and map the data to ensure we have valid notes
@@ -111,8 +111,7 @@ export default function NotesPage() {
     if (!user) return
 
     try {
-      await DatabaseService.updateProgress({
-        user_id: user.id,
+      await updateProgressAction({
         video_id: note.video_id,
         notes: editContent,
       })
@@ -133,8 +132,7 @@ export default function NotesPage() {
     if (!user) return
 
     try {
-      await DatabaseService.updateProgress({
-        user_id: user.id,
+      await updateProgressAction({
         video_id: note.video_id,
         notes: "",
       })

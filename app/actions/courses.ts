@@ -73,3 +73,51 @@ export async function getStreakActivityAction() {
   
   return await DatabaseService.getStreakActivity(userId)
 }
+
+export async function updateProgressAction(data: {
+  video_id: string
+  completed?: boolean
+  bookmarked?: boolean
+  notes?: string
+}) {
+  const userId = await ensureUserExists()
+  
+  if (!userId) {
+    throw new Error('Unauthorized')
+  }
+  
+  return await DatabaseService.updateProgress({
+    user_id: userId,
+    ...data,
+  })
+}
+
+export async function updateStreakActivityAction(date: string) {
+  const userId = await ensureUserExists()
+  
+  if (!userId) {
+    throw new Error('Unauthorized')
+  }
+  
+  return await DatabaseService.updateStreakActivity(userId, date)
+}
+
+export async function saveVideoTimestampAction(videoId: string, timestamp: number, duration: number) {
+  const userId = await ensureUserExists()
+  
+  if (!userId) {
+    throw new Error('Unauthorized')
+  }
+  
+  return await DatabaseService.saveVideoTimestamp(userId, videoId, timestamp, duration)
+}
+
+export async function getVideoTimestampAction(videoId: string) {
+  const userId = await ensureUserExists()
+  
+  if (!userId) {
+    throw new Error('Unauthorized')
+  }
+  
+  return await DatabaseService.getVideoTimestamp(userId, videoId)
+}

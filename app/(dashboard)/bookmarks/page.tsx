@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Bookmark, Search, Play, Trash2, Clock } from "lucide-react"
 import { useAuth } from "@/lib/auth"
-import { DatabaseService } from "@/lib/database"
+import { getBookmarksAction, updateProgressAction } from "@/app/actions/courses"
 
 interface BookmarkItem {
   id: string
@@ -72,7 +72,7 @@ export default function BookmarksPage() {
 
     try {
       console.log("Loading bookmarks for user:", user.id)
-      const bookmarksData = await DatabaseService.getBookmarks(user.id)
+      const bookmarksData = await getBookmarksAction()
       console.log("Raw bookmarks data:", bookmarksData)
 
       // Filter and map the data to ensure we have valid bookmarks
@@ -97,8 +97,7 @@ export default function BookmarksPage() {
     if (!user) return
 
     try {
-      await DatabaseService.updateProgress({
-        user_id: user.id,
+      await updateProgressAction({
         video_id: bookmark.video_id,
         bookmarked: false,
       })

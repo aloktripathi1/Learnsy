@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth"
-import { DatabaseService } from "@/lib/database"
+import { getCoursesAction, getVideosAction, getUserProgressAction, updateProgressAction, updateStreakActivityAction, saveVideoTimestampAction, getVideoTimestampAction } from "@/app/actions/courses"
 import type { Course, Video, UserProgress } from "@/lib/db"
 import { NotesModal } from "@/components/notes-modal"
 
@@ -106,7 +106,7 @@ export default function StudyPage() {
     if (!user) return
 
     try {
-      const courses = await DatabaseService.getCourses(user.id)
+      const courses = await getCoursesAction()
       const foundCourse = courses.find((c) => c.id === params.playlistId)
 
       if (!foundCourse) {
@@ -116,8 +116,8 @@ export default function StudyPage() {
 
       setCourse(foundCourse)
 
-      const videosData = await DatabaseService.getVideos(foundCourse.id)
-      const progressData = await DatabaseService.getUserProgress(user.id)
+      const videosData = await getVideosAction(foundCourse.id)
+      const progressData = await getUserProgressAction()
 
       const videosWithProgress: VideoWithProgress[] = videosData.map((video) => {
         const progress = progressData.find((p) => p.video_id === video.video_id)
@@ -157,10 +157,9 @@ export default function StudyPage() {
     if (!user || !currentVideo) return
 
     try {
-      console.log("Updating video progress:", { user_id: user.id, video_id: currentVideo.video_id, ...updates })
+      console.log("Updating video progress:", { video_id: currentVideo.video_id, ...updates })
 
-      await DatabaseService.updateProgress({
-        user_id: user.id,
+      await updateProgressAction({
         video_id: currentVideo.video_id,
         ...updates,
       })
@@ -206,7 +205,7 @@ export default function StudyPage() {
     // Update streak
     const today = new Date().toISOString().split("T")[0]
     try {
-      await DatabaseService.updateStreakActivity(user.id, today)
+      await updateStreakActivityAction(today)
     } catch (error) {
       console.error("Error updating streak:", error)
     }
