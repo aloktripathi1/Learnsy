@@ -79,7 +79,7 @@ export default function HomePage() {
 
             {/* Desktop Sign In */}
             <div className="hidden sm:block">
-              <Button onClick={handleSignIn} disabled={isLoading || !!error} size="lg" className="gap-2 touch-target">
+              <Button onClick={handleSignIn} disabled={isLoading} size="lg" className="gap-2 touch-target">
                 {isLoading ? (
                   <>
                     <div className="loading-spinner" />
@@ -110,7 +110,7 @@ export default function HomePage() {
           {/* Mobile Menu */}
           {mobileMenuOpen && (
             <div className="sm:hidden mt-4 pb-4 border-t pt-4">
-              <Button onClick={handleSignIn} disabled={isLoading || !!error} className="w-full gap-2 touch-target">
+              <Button onClick={handleSignIn} disabled={isLoading} className="w-full gap-2 touch-target">
                 {isLoading ? (
                   <>
                     <div className="loading-spinner" />
