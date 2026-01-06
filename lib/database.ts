@@ -106,25 +106,43 @@ export class DatabaseService {
     const db = this.checkDatabase()
     console.log(`Creating ${videos.length} videos`)
     
-    const results: Video[] = []
-    
-    // Insert videos in batches to avoid payload size limits
-    const batchSize = 50
-    for (let i = 0; i < videos.length; i += batchSize) {
-      const batch = videos.slice(i, i + batchSize)
-      console.log(`Inserting batch ${i / batchSize + 1} with ${batch.length} videos`)
-      
-      for (const video of batch) {
-        const result = await db`
-          INSERT INTO videos (course_id, video_id, title, thumbnail, duration, position)
-          VALUES (${video.course_id}, ${video.video_id}, ${video.title}, ${video.thumbnail || null}, ${video.duration || null}, ${video.position})
-          RETURNING *
-        `
-        results.push(result[0] as Video)
-      }
+    if (videos.length === 0) {
+      return []
     }
     
-    console.log(`Successfully created ${results.length} videos`)
+    const results: Video[] = []
+    
+    // Insert videos in larger batches using bulk insert for much better performance
+    const batchSize = 100
+    for (let i = 0; i < videos.length; i += batchSize) {
+      const batch = videos.slice(i, i + batchSize)
+      console.log(`Inserting batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(videos.length / batchSize)} with ${batch.length} videos`)
+      
+      // Use bulk insert with unnest for maximum performance
+      const courseIds = batch.map(v => v.course_id)
+      const videoIds = batch.map(v => v.video_id)
+      const titles = batch.map(v => v.title)
+      const thumbnails = batch.map(v => v.thumbnail || '')
+      const durations = batch.map(v => v.duration || '0:00')
+      const positions = batch.map(v => v.position)
+      
+      const result = await db`
+        INSERT INTO videos (course_id, video_id, title, thumbnail, duration, position)
+        SELECT * FROM UNNEST(
+          ${courseIds}::uuid[],
+          ${videoIds}::text[],
+          ${titles}::text[],
+          ${thumbnails}::text[],
+          ${durations}::text[],
+          ${positions}::integer[]
+        )
+        RETURNING *
+      `
+      
+      results.push(...(result as Video[]))
+    }
+    
+    console.log(`Successfully created ${results.length} videos in ${Math.ceil(videos.length / batchSize)} batches`)
     return results
   }
 
@@ -156,6 +174,11 @@ export class DatabaseService {
     const db = this.checkDatabase()
     console.log("Updating progress:", progress)
     
+    // Auto-set completed_at when marking as completed
+    const completedAt = progress.completed 
+      ? (progress.completed_at || new Date().toISOString()) 
+      : progress.completed_at || null
+    
     const result = await db`
       INSERT INTO user_progress (user_id, video_id, completed, bookmarked, notes, completed_at)
       VALUES (
@@ -164,13 +187,17 @@ export class DatabaseService {
         ${progress.completed ?? false},
         ${progress.bookmarked ?? false},
         ${progress.notes || null},
-        ${progress.completed_at || null}
+        ${completedAt}
       )
       ON CONFLICT (user_id, video_id) DO UPDATE SET
         completed = EXCLUDED.completed,
         bookmarked = EXCLUDED.bookmarked,
-        notes = EXCLUDED.notes,
-        completed_at = EXCLUDED.completed_at,
+        notes = COALESCE(EXCLUDED.notes, user_progress.notes),
+        completed_at = CASE 
+          WHEN EXCLUDED.completed = true AND user_progress.completed = false THEN EXCLUDED.completed_at
+          WHEN EXCLUDED.completed = false THEN NULL
+          ELSE user_progress.completed_at
+        END,
         updated_at = NOW()
       RETURNING *
     `
@@ -313,6 +340,16 @@ export class DatabaseService {
     `
     
     console.log("Video timestamp updated successfully")
+  }
+
+  // Alias for backward compatibility
+  static async saveVideoTimestamp(
+    userId: string,
+    videoId: string,
+    timestamp: number,
+    duration: number,
+  ): Promise<void> {
+    return this.updateVideoTimestamp(userId, videoId, timestamp, duration)
   }
 
   // Course Deletion with Related Data

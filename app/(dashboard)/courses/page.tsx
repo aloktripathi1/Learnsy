@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -62,41 +62,53 @@ export default function CoursesPage() {
     try {
       const coursesData = await getCoursesAction()
 
-      // Update courses state
-      setCourses(coursesData)
-      setFilteredCourses(coursesData)
+      // Update courses state with null safety
+      const courses = coursesData || []
+      setCourses(courses)
+      setFilteredCourses(courses)
 
-      // Calculate the correct playlist limit values
+      // Calculate playlist limit from actual data
       const maxCount = 4 // This is the MAX_PLAYLISTS_PER_USER value
-      const currentCount = coursesData.length
+      const currentCount = courses.length
       const remaining = Math.max(0, maxCount - currentCount)
 
       // Update the playlist limit state with accurate values
       setPlaylistLimit({
         canImport: currentCount < maxCount,
-        currentCount: currentCount,
-        maxCount: maxCount,
-        remaining: remaining,
+        currentCount,
+        maxCount,
+        remaining,
       })
 
-      console.log("Courses page data loaded:", {
-        courses: coursesData.length,
-        playlistLimit: {
-          currentCount: currentCount,
-          maxCount: maxCount,
-          remaining: remaining,
-        },
+      console.log("Courses page loaded:", {
+        totalCourses: currentCount,
+        limit: { current: currentCount, max: maxCount, remaining },
       })
     } catch (error) {
       console.error("Error loading courses:", error)
+      // Set safe defaults
+      setCourses([])
+      setFilteredCourses([])
+      setPlaylistLimit({
+        canImport: true,
+        currentCount: 0,
+        maxCount: 4,
+        remaining: 4,
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const continueCourse = async (course: Course) => {
+  const continueCourse = useCallback(async (course: Course) => {
     try {
       const videos = await getVideosAction(course.id)
+      
+      if (!videos || videos.length === 0) {
+        console.error("No videos found for course")
+        return
+      }
+
       const progress = await getUserProgressAction()
 
       const nextVideo = videos.find((v) => {
@@ -113,7 +125,7 @@ export default function CoursesPage() {
     } catch (error) {
       console.error("Error continuing course:", error)
     }
-  }
+  }, [router])
 
   const deleteCourse = async (course: Course) => {
     if (!user) return

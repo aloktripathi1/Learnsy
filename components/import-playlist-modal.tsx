@@ -31,6 +31,8 @@ export function ImportPlaylistModal({
   const [isImporting, setIsImporting] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const [importSuccess, setImportSuccess] = useState<string | null>(null)
+  const [importProgress, setImportProgress] = useState(0)
+  const [progressMessage, setProgressMessage] = useState("")
   const [mounted, setMounted] = useState(false)
 
   // Ensure component is mounted before rendering portal
@@ -59,19 +61,55 @@ export function ImportPlaylistModal({
     setIsImporting(true)
     setImportError(null)
     setImportSuccess(null)
+    setImportProgress(0)
+    setProgressMessage("Starting import...")
 
     try {
-      console.log("Starting import process...")
-      const response = await fetch('/api/import-playlist', {
+      // Use streaming API for real-time progress
+      const response = await fetch('/api/import-playlist-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playlistUrl })
       })
-      
-      const result = await response.json()
 
-      if (result.success) {
-        console.log("Import successful!")
+      if (!response.ok || !response.body) {
+        throw new Error('Failed to start import')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+
+      let result: any = null
+
+      while (true) {
+        const { done, value } = await reader.read()
+        
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              
+              if (data.type === 'progress') {
+                setImportProgress(data.progress)
+                setProgressMessage(data.message)
+              } else if (data.type === 'success') {
+                result = data
+              } else if (data.type === 'error') {
+                throw new Error(data.error)
+              }
+            } catch (e) {
+              // Ignore JSON parse errors for incomplete chunks
+            }
+          }
+        }
+      }
+
+      if (result?.success) {
         setPlaylistUrl("")
         setImportError(null)
         setImportSuccess(
@@ -79,20 +117,18 @@ export function ImportPlaylistModal({
             `Successfully imported "${result.course?.title}" with ${result.course?.videoCount || 0} videos!`,
         )
 
-        // Close modal after a short delay to show success message
+        // Close modal after a short delay
         setTimeout(() => {
           handleClose()
           if (onSuccess) onSuccess()
         }, 2000)
-      } else {
-        console.error("Import failed:", result.error)
-        setImportError(result.error || "Failed to import playlist")
-        setImportSuccess(null)
       }
     } catch (error) {
       console.error("Import error:", error)
-      setImportError("An unexpected error occurred. Please try again.")
+      setImportError(error instanceof Error ? error.message : "An unexpected error occurred. Please try again.")
       setImportSuccess(null)
+      setImportProgress(0)
+      setProgressMessage("")
     } finally {
       setIsImporting(false)
     }
@@ -104,6 +140,8 @@ export function ImportPlaylistModal({
     setPlaylistUrl("")
     setImportError(null)
     setImportSuccess(null)
+    setImportProgress(0)
+    setProgressMessage("")
     setIsOpen(false)
   }
 
@@ -153,6 +191,22 @@ export function ImportPlaylistModal({
             currentCount={playlistLimit.currentCount}
             maxCount={playlistLimit.maxCount}
           />
+
+          {/* Show import progress */}
+          {isImporting && (
+            <div className="space-y-2 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-blue-700 dark:text-blue-400 font-medium">{progressMessage}</span>
+                <span className="text-blue-600 dark:text-blue-500">{importProgress}%</span>
+              </div>
+              <div className="w-full bg-blue-100 dark:bg-blue-900/40 rounded-full h-2.5">
+                <div 
+                  className="bg-blue-600 dark:bg-blue-500 h-2.5 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${importProgress}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
 
           {/* Show import success */}
           {importSuccess && (

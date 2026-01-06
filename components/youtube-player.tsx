@@ -6,8 +6,9 @@ import { DatabaseService } from "@/lib/database"
 
 interface YouTubePlayerProps {
   videoId: string
-  onProgress?: (progress: number) => void
-  onComplete?: () => void
+  startTime?: number
+  onProgress?: (currentTime: number, duration: number) => void
+  onEnd?: () => void
   className?: string
 }
 
@@ -18,7 +19,7 @@ declare global {
   }
 }
 
-export function YouTubePlayer({ videoId, onProgress, onComplete, className }: YouTubePlayerProps) {
+export function YouTubePlayer({ videoId, startTime = 0, onProgress, onEnd, className }: YouTubePlayerProps) {
   const { user } = useAuth()
   const playerRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -30,6 +31,7 @@ export function YouTubePlayer({ videoId, onProgress, onComplete, className }: Yo
   const timestampIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastSavedTime = useRef<number>(0)
   const isInitializing = useRef<boolean>(false)
+  const startTimeRef = useRef<number>(startTime)
 
   const saveTimestamp = useCallback(async () => {
     if (!user || !playerRef.current || typeof playerRef.current.getCurrentTime !== "function") return
@@ -61,12 +63,21 @@ export function YouTubePlayer({ videoId, onProgress, onComplete, className }: Yo
       if (!user || !playerRef.current || typeof playerRef.current.seekTo !== "function") return
 
       try {
-        console.log("Attempting to resume from saved timestamp for video:", videoId)
-        const timestampData = await DatabaseService.getVideoTimestamp(user.id, videoId)
+        // Use provided startTime first, otherwise load from database
+        let resumeTime = startTimeRef.current
 
-        if (timestampData && timestampData.timestamp > 10) {
+        if (resumeTime === 0) {
+          console.log("Attempting to resume from saved timestamp for video:", videoId)
+          const timestampData = await DatabaseService.getVideoTimestamp(user.id, videoId)
+
+          if (timestampData && timestampData.timestamp > 10) {
+            resumeTime = timestampData.timestamp
+          }
+        }
+
+        if (resumeTime > 10) {
           // Only resume if more than 10 seconds in
-          console.log(`Resuming video from ${timestampData.timestamp} seconds`)
+          console.log(`Resuming video from ${resumeTime} seconds`)
 
           // Wait for player to be ready before seeking
           const seekWhenReady = () => {
@@ -74,8 +85,8 @@ export function YouTubePlayer({ videoId, onProgress, onComplete, className }: Yo
               const state = playerRef.current.getPlayerState()
               // Wait for player to be ready (state 1 = playing, state 2 = paused, state 3 = buffering)
               if (state >= 1) {
-                playerRef.current.seekTo(timestampData.timestamp, true)
-                lastSavedTime.current = timestampData.timestamp
+                playerRef.current.seekTo(resumeTime, true)
+                lastSavedTime.current = resumeTime
                 console.log("Successfully resumed from timestamp")
               } else {
                 // Retry after a short delay
@@ -107,14 +118,16 @@ export function YouTubePlayer({ videoId, onProgress, onComplete, className }: Yo
           const duration = playerRef.current.getDuration()
 
           if (duration > 0) {
+            // Call onProgress with time values
+            onProgress?.(currentTime, duration)
+
             const progress = (currentTime / duration) * 100
-            onProgress?.(progress)
 
             // Auto-complete at 90% progress
             if (progress >= 90 && !hasCompleted) {
               console.log(`Video reached ${progress.toFixed(1)}% - auto-completing`)
               setHasCompleted(true)
-              onComplete?.()
+              onEnd?.()
               stopProgressTracking()
               stopTimestampTracking()
 
@@ -127,7 +140,7 @@ export function YouTubePlayer({ videoId, onProgress, onComplete, className }: Yo
         }
       }
     }, 1000) // Check every second
-  }, [onProgress, onComplete, hasCompleted])
+  }, [onProgress, onEnd, hasCompleted])
 
   const stopProgressTracking = useCallback(() => {
     if (progressIntervalRef.current) {
@@ -226,7 +239,7 @@ export function YouTubePlayer({ videoId, onProgress, onComplete, className }: Yo
     }
   }, [
     videoId,
-    onComplete,
+    onEnd,
     hasCompleted,
     resumeFromTimestamp,
     startProgressTracking,
@@ -235,6 +248,11 @@ export function YouTubePlayer({ videoId, onProgress, onComplete, className }: Yo
     stopTimestampTracking,
     saveTimestamp,
   ])
+
+  // Update startTimeRef when startTime prop changes
+  useEffect(() => {
+    startTimeRef.current = startTime
+  }, [startTime])
 
   // Load YouTube API only once
   useEffect(() => {

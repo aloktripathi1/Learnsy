@@ -116,37 +116,48 @@ export default function DashboardPage() {
         checkPlaylistLimit(user.id),
       ])
 
-      // Make sure we update the courses state
-      setCourses(coursesData)
+      // Update courses state
+      setCourses(coursesData || [])
 
-      // Ensure we update the playlist limit with the correct count
+      // Calculate playlist limit from actual data
+      const maxCount = limitCheck?.maxCount || 4
+      const currentCount = coursesData?.length || 0
+      const remaining = Math.max(0, maxCount - currentCount)
+
       setPlaylistLimit({
-        ...limitCheck,
-        currentCount: coursesData.length, // Ensure this is set correctly from actual courses count
-        remaining: Math.max(0, limitCheck.maxCount - coursesData.length),
+        canImport: currentCount < maxCount,
+        currentCount,
+        maxCount,
+        remaining,
       })
 
-      // Calculate accurate statistics
-      const watchedCount = progress.filter((p) => p.completed === true).length
+      // Calculate statistics with null safety
+      const watchedCount = progress?.filter((p) => p.completed === true).length || 0
       const streakCount = await calculateStreak()
 
       setStats({
         watchedVideos: watchedCount,
         activeStreak: streakCount,
-        totalCourses: coursesData.length, // This is the actual count of imported playlists
-        bookmarkedVideos: bookmarks.length,
+        totalCourses: currentCount,
+        bookmarkedVideos: bookmarks?.length || 0,
       })
 
-      console.log("Dashboard data loaded:", {
-        courses: coursesData.length,
-        playlistLimit: {
-          currentCount: coursesData.length,
-          maxCount: limitCheck.maxCount,
-          remaining: Math.max(0, limitCheck.maxCount - coursesData.length),
-        },
+      console.log("Dashboard stats calculated:", {
+        courses: currentCount,
+        watched: watchedCount,
+        bookmarks: bookmarks?.length || 0,
+        streak: streakCount,
+        limit: { current: currentCount, max: maxCount, remaining },
       })
     } catch (error) {
-      console.error("Error loading data:", error)
+      console.error("Error loading dashboard data:", error)
+      // Set safe defaults on error
+      setStats({
+        watchedVideos: 0,
+        activeStreak: 0,
+        totalCourses: 0,
+        bookmarkedVideos: 0,
+      })
     }
   }
 

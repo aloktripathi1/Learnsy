@@ -1,4 +1,30 @@
 // Server-side YouTube API functions
+
+// Simple in-memory cache for playlist data (expires after 5 minutes)
+const playlistCache = new Map<string, { data: YouTubePlaylist; timestamp: number }>()
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+
+// Utility to clear cache (useful for testing)
+export function clearPlaylistCache() {
+  playlistCache.clear()
+  console.log("Playlist cache cleared")
+}
+
+// Utility to clear expired cache entries
+export function cleanExpiredCache() {
+  const now = Date.now()
+  let cleaned = 0
+  for (const [key, value] of playlistCache.entries()) {
+    if (now - value.timestamp >= CACHE_DURATION) {
+      playlistCache.delete(key)
+      cleaned++
+    }
+  }
+  if (cleaned > 0) {
+    console.log(`Cleaned ${cleaned} expired cache entries`)
+  }
+}
+
 export interface YouTubeVideo {
   id: string
   title: string
@@ -90,6 +116,13 @@ export function validatePlaylistUrl(url: string): { isValid: boolean; error?: st
 }
 
 export async function fetchPlaylistData(playlistId: string): Promise<YouTubePlaylist> {
+  // Check cache first
+  const cached = playlistCache.get(playlistId)
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    console.log(`Using cached data for playlist: ${playlistId}`)
+    return cached.data
+  }
+
   const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
 
   if (!YOUTUBE_API_KEY) {
@@ -206,11 +239,6 @@ export async function fetchPlaylistData(playlistId: string): Promise<YouTubePlay
       }
 
       nextPageToken = itemsData.nextPageToken || ""
-
-      // Add a small delay to be respectful to the API
-      if (nextPageToken && pageCount > 1) {
-        await new Promise((resolve) => setTimeout(resolve, 100))
-      }
     } while (nextPageToken && pageCount < maxPages)
 
     console.log(`Pagination complete. Total videos found: ${allVideos.length} across ${pageCount} pages`)
@@ -230,43 +258,65 @@ export async function fetchPlaylistData(playlistId: string): Promise<YouTubePlay
     console.log(`Fetching details for ${validVideoIds.length} videos...`)
 
     // Process videos in batches of 50 (YouTube API limit)
+    const batchCount = Math.ceil(validVideoIds.length / 50)
+    console.log(`Fetching details in ${batchCount} batches...`)
+    
+    // Process batches in parallel (max 3 concurrent requests)
+    const batchPromises: Promise<void>[] = []
+    const maxConcurrent = 3
+    
     for (let i = 0; i < validVideoIds.length; i += 50) {
-      const batch = validVideoIds.slice(i, i + 50)
-      const videoIds = batch.join(",")
+      const batchPromise = (async (batchIndex: number) => {
+        const batch = validVideoIds.slice(batchIndex, batchIndex + 50)
+        const videoIds = batch.join(",")
 
-      const videosUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet&id=${videoIds}&key=${YOUTUBE_API_KEY}`
+        const videosUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet&id=${videoIds}&key=${YOUTUBE_API_KEY}`
 
-      const videosResponse = await fetch(videosUrl, {
-        headers: {
-          Accept: "application/json",
-        },
-      })
+        try {
+          const videosResponse = await fetch(videosUrl, {
+            headers: {
+              Accept: "application/json",
+            },
+          })
 
-      if (!videosResponse.ok) {
-        const errorText = await videosResponse.text()
-        console.error("Videos API error:", videosResponse.status, errorText)
-
-        if (videosResponse.status === 403) {
-          if (errorText.includes("quotaExceeded")) {
-            throw new Error("YouTube API quota exceeded. Please try again later.")
+          if (!videosResponse.ok) {
+            const errorText = await videosResponse.text()
+            
+            if (videosResponse.status === 403 && errorText.includes("quotaExceeded")) {
+              throw new Error("YouTube API quota exceeded. Please try again later.")
+            }
+            
+            console.warn(`Failed to fetch video details for batch ${Math.floor(batchIndex / 50) + 1}, continuing...`)
+            return
           }
+
+          const videosData = await videosResponse.json()
+
+          if (videosData.items) {
+            videosData.items.forEach((video: any) => {
+              videoDetailsMap.set(video.id, video)
+            })
+          }
+        } catch (error) {
+          console.warn(`Error fetching batch ${Math.floor(batchIndex / 50) + 1}:`, error)
         }
-
-        // Don't fail completely if we can't get video details
-        console.warn(`Failed to fetch video details for batch ${i / 50 + 1}, continuing...`)
-        continue
-      }
-
-      const videosData = await videosResponse.json()
-
-      if (videosData.items) {
-        videosData.items.forEach((video: any) => {
-          videoDetailsMap.set(video.id, video)
-        })
+      })(i)
+      
+      batchPromises.push(batchPromise)
+      
+      // Wait for batch if we've reached max concurrent
+      if (batchPromises.length >= maxConcurrent) {
+        await Promise.all(batchPromises)
+        batchPromises.length = 0
       }
     }
+    
+    // Wait for remaining batches
+    if (batchPromises.length > 0) {
+      await Promise.all(batchPromises)
+    }
 
-    console.log(`Retrieved details for ${videoDetailsMap.size} videos`)
+    console.log(`Retrieved details for ${videoDetailsMap.size}/${validVideoIds.length} videos`)
 
     // Create video objects
     const videos: YouTubeVideo[] = allVideos
@@ -304,12 +354,17 @@ export async function fetchPlaylistData(playlistId: string): Promise<YouTubePlay
 
     console.log(`Successfully processed ${videos.length} videos`)
 
-    return {
+    const result = {
       id: playlistId,
       title: playlist.snippet?.title || "Untitled Playlist",
       thumbnail: getBestThumbnail(playlist.snippet?.thumbnails),
       videos,
     }
+
+    // Cache the result
+    playlistCache.set(playlistId, { data: result, timestamp: Date.now() })
+
+    return result
   } catch (error) {
     console.error("Error fetching playlist data:", error)
 

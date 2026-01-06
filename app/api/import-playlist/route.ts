@@ -43,29 +43,7 @@ export async function POST(request: NextRequest) {
 
     console.log("YouTube API key is configured")
 
-    // Check playlist limit BEFORE any other operations
-    console.log("Checking playlist limit...")
-    try {
-      const existingCourses = await DatabaseService.getCourses(userId)
-      console.log("User has", existingCourses.length, "existing playlists")
-
-      if (existingCourses.length >= MAX_PLAYLISTS_PER_USER) {
-        console.log("Playlist limit reached for user:", userId)
-        return NextResponse.json({
-          success: false,
-          error: "Limit reached. Complete or delete a playlist to import more.",
-          limitReached: true,
-        }, { status: 400 })
-      }
-    } catch (dbError) {
-      console.error("Error checking playlist limit:", dbError)
-      return NextResponse.json({
-        success: false,
-        error: "Database error: Could not check playlist limit. Please try again.",
-      }, { status: 500 })
-    }
-
-    // Validate URL format first
+    // Validate URL format first (before any DB operations)
     const urlValidation = validatePlaylistUrl(playlistUrl)
     if (!urlValidation.isValid) {
       console.log("URL validation failed:", urlValidation.error)
@@ -86,10 +64,23 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Check if course already exists (after limit check)
-    console.log("Checking for existing course...")
+    // Single database check for both limit and existing course
+    console.log("Checking playlist limit and existing courses...")
     try {
       const existingCourses = await DatabaseService.getCourses(userId)
+      console.log(`User has ${existingCourses.length}/${MAX_PLAYLISTS_PER_USER} playlists`)
+
+      // Check if limit reached
+      if (existingCourses.length >= MAX_PLAYLISTS_PER_USER) {
+        console.log("Playlist limit reached for user:", userId)
+        return NextResponse.json({
+          success: false,
+          error: "Limit reached. Complete or delete a playlist to import more.",
+          limitReached: true,
+        }, { status: 400 })
+      }
+
+      // Check if course already exists
       const existingCourse = existingCourses.find((course) => course.playlist_id === playlistId)
       if (existingCourse) {
         console.log("Course already exists:", existingCourse.id)
@@ -99,10 +90,10 @@ export async function POST(request: NextRequest) {
         }, { status: 400 })
       }
     } catch (dbError) {
-      console.error("Error checking existing courses:", dbError)
+      console.error("Error checking courses:", dbError)
       return NextResponse.json({
         success: false,
-        error: "Database error: Could not check existing courses. Please try again.",
+        error: "Database error: Could not verify playlist limit. Please try again.",
       }, { status: 500 })
     }
 
@@ -111,10 +102,7 @@ export async function POST(request: NextRequest) {
     let playlistData
     try {
       playlistData = await fetchPlaylistData(playlistId)
-      console.log("Playlist data fetched successfully:", {
-        title: playlistData.title,
-        videoCount: playlistData.videos.length,
-      })
+      console.log(`Playlist fetched: "${playlistData.title}" with ${playlistData.videos.length} videos`)
 
       // Validate playlist has videos
       if (!playlistData.videos || playlistData.videos.length === 0) {
@@ -127,7 +115,6 @@ export async function POST(request: NextRequest) {
       console.error("YouTube API error:", ytError)
 
       if (ytError instanceof Error) {
-        // Return specific YouTube API errors
         return NextResponse.json({
           success: false,
           error: ytError.message,
@@ -140,27 +127,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // Double-check limit before creating course (race condition protection)
-    console.log("Final playlist limit check before creation...")
-    try {
-      const finalCourseCheck = await DatabaseService.getCourses(userId)
-      if (finalCourseCheck.length >= MAX_PLAYLISTS_PER_USER) {
-        console.log("Playlist limit reached during import process for user:", userId)
-        return NextResponse.json({
-          success: false,
-          error: "Limit reached. Complete or delete a playlist to import more.",
-          limitReached: true,
-        }, { status: 400 })
-      }
-    } catch (dbError) {
-      console.error("Error in final playlist limit check:", dbError)
-      return NextResponse.json({
-        success: false,
-        error: "Database error: Could not verify playlist limit. Please try again.",
-      }, { status: 500 })
-    }
-
-    // Create course in database
+    // Create course and videos in database
     console.log("Creating course in database...")
     let course
     try {

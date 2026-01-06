@@ -1,18 +1,42 @@
 "use server"
 
-import { extractPlaylistId, fetchPlaylistData, validatePlaylistUrl } from "@/lib/youtube-server"
+import { ensureUserExists } from "@/lib/ensure-user"
+import { DatabaseService } from "@/lib/database"
 
 const MAX_PLAYLISTS_PER_USER = 4
 
-// Note: This is a server action that won't work in static export
-// For static deployment, this functionality needs to be moved to API routes
-export async function importPlaylistAction(playlistUrl: string, userId: string) {
-  // This function will need to be converted to an API route for static deployment
-  throw new Error("Server actions are not supported in static export. Please use API routes instead.")
-}
+// Check if user can import more playlists
+export async function checkPlaylistLimit(userId?: string) {
+  try {
+    const actualUserId = userId || await ensureUserExists()
+    
+    if (!actualUserId) {
+      return {
+        canImport: false,
+        currentCount: 0,
+        maxCount: MAX_PLAYLISTS_PER_USER,
+        remaining: 0,
+      }
+    }
 
-// Helper function to check if user can import more playlists
-export async function checkPlaylistLimit(userId: string) {
-  // This function will need to be converted to an API route for static deployment
-  throw new Error("Server actions are not supported in static export. Please use API routes instead.")
+    const courses = await DatabaseService.getCourses(actualUserId)
+    const currentCount = courses.length
+    const remaining = Math.max(0, MAX_PLAYLISTS_PER_USER - currentCount)
+    const canImport = currentCount < MAX_PLAYLISTS_PER_USER
+
+    return {
+      canImport,
+      currentCount,
+      maxCount: MAX_PLAYLISTS_PER_USER,
+      remaining,
+    }
+  } catch (error) {
+    console.error("Error checking playlist limit:", error)
+    return {
+      canImport: false,
+      currentCount: 0,
+      maxCount: MAX_PLAYLISTS_PER_USER,
+      remaining: 0,
+    }
+  }
 }
