@@ -177,14 +177,21 @@ export default function DashboardPage() {
       loadData()
     }
 
+    const handleCoursesUpdate = () => {
+      console.log("Courses updated, refreshing dashboard...")
+      loadData()
+    }
+
     window.addEventListener("notesUpdated", handleNotesUpdate)
     window.addEventListener("bookmarksUpdated", handleBookmarksUpdate)
     window.addEventListener("progressUpdated", handleProgressUpdate)
+    window.addEventListener("coursesUpdated", handleCoursesUpdate)
 
     return () => {
       window.removeEventListener("notesUpdated", handleNotesUpdate)
       window.removeEventListener("bookmarksUpdated", handleBookmarksUpdate)
       window.removeEventListener("progressUpdated", handleProgressUpdate)
+      window.removeEventListener("coursesUpdated", handleCoursesUpdate)
     }
   }, [user?.id])
 

@@ -106,6 +106,17 @@ export default function CoursesPage() {
     }
   }, [user?.id, loadCourses])
 
+  // Listen for course updates from import modal
+  useEffect(() => {
+    const handleCoursesUpdate = () => {
+      console.log("Courses update event received, refreshing...")
+      loadCourses()
+    }
+
+    window.addEventListener("coursesUpdated", handleCoursesUpdate)
+    return () => window.removeEventListener("coursesUpdated", handleCoursesUpdate)
+  }, [loadCourses])
+
   const continueCourse = useCallback(async (course: Course) => {
     try {
       console.log("Starting course:", course.id)

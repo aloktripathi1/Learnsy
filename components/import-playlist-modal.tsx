@@ -117,11 +117,17 @@ export function ImportPlaylistModal({
             `Successfully imported "${result.course?.title}" with ${result.course?.videoCount || 0} videos!`,
         )
 
+        // Dispatch event immediately so courses list updates
+        window.dispatchEvent(new CustomEvent("coursesUpdated"))
+
         // Close modal after a short delay
         setTimeout(() => {
           handleClose()
-          if (onSuccess) onSuccess()
-        }, 2000)
+          // Call onSuccess after close to ensure UI is ready
+          if (onSuccess) {
+            onSuccess()
+          }
+        }, 1500)
       }
     } catch (error) {
       console.error("Import error:", error)

@@ -241,7 +241,7 @@ export class DatabaseService {
     console.log("Getting bookmarks for user:", userId)
     
     const bookmarks = await db`
-      SELECT 
+      SELECT DISTINCT ON (up.video_id)
         up.id,
         up.user_id,
         up.video_id,
@@ -263,6 +263,7 @@ export class DatabaseService {
       INNER JOIN videos v ON up.video_id = v.video_id
       INNER JOIN courses c ON v.course_id = c.id
       WHERE up.user_id = ${userId} AND up.bookmarked = true
+      ORDER BY up.video_id, up.updated_at DESC
     `
     
     console.log(`Retrieved ${bookmarks.length} bookmarks`)
@@ -275,7 +276,7 @@ export class DatabaseService {
     console.log("Getting notes for user:", userId)
     
     const notes = await db`
-      SELECT 
+      SELECT DISTINCT ON (up.video_id)
         up.id,
         up.user_id,
         up.video_id,
@@ -297,6 +298,7 @@ export class DatabaseService {
       INNER JOIN videos v ON up.video_id = v.video_id
       INNER JOIN courses c ON v.course_id = c.id
       WHERE up.user_id = ${userId} AND up.notes IS NOT NULL AND up.notes != ''
+      ORDER BY up.video_id, up.updated_at DESC
     `
     
     console.log(`Retrieved ${notes.length} notes`)
