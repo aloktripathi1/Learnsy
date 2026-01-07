@@ -10,11 +10,9 @@ export function useAuth() {
 
   const handleSignIn = async () => {
     try {
-      // Redirect directly to Google OAuth, skipping Clerk's sign-in page
-      await clerk.authenticateWithRedirect({
-        strategy: 'oauth_google',
-        redirectUrl: window.location.origin + '/dashboard',
-        redirectUrlComplete: window.location.origin + '/dashboard'
+      // Use Clerk's sign-in with Google strategy
+      await clerk.redirectToSignIn({
+        redirectUrl: '/dashboard',
       })
     } catch (error) {
       console.error("Sign-in error:", error)

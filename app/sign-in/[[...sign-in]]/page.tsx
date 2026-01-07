@@ -8,7 +8,19 @@ export default function SignInPage() {
           elements: {
             rootBox: "mx-auto",
             card: "shadow-xl",
+            socialButtonsBlockButton: "hidden",
+            socialButtonsBlockButtonText: "hidden",
+            formFieldInput: "hidden",
+            formButtonPrimary: "hidden",
+            footerAction: "hidden",
+            identityPreview: "hidden",
+            formResendCodeLink: "hidden",
+            otpCodeFieldInput: "hidden",
           },
+          layout: {
+            socialButtonsPlacement: "top",
+            socialButtonsVariant: "blockButton",
+          }
         }}
         redirectUrl="/dashboard"
         signUpUrl="/sign-up"
