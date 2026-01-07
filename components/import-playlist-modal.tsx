@@ -110,23 +110,25 @@ export function ImportPlaylistModal({
       }
 
       if (result?.success) {
-        setPlaylistUrl("")
-        setImportError(null)
         setImportSuccess(
           result.message ||
             `Successfully imported "${result.course?.title}" with ${result.course?.videoCount || 0} videos!`,
         )
 
-        // Dispatch event immediately so courses list updates
+        // Call onSuccess callback immediately to trigger parent refresh
+        if (onSuccess) {
+          onSuccess()
+        }
+
+        // Dispatch event for any other listeners
         window.dispatchEvent(new CustomEvent("coursesUpdated"))
 
-        // Close modal after a short delay
+        // Close modal after showing success message
         setTimeout(() => {
-          handleClose()
-          // Call onSuccess after close to ensure UI is ready
-          if (onSuccess) {
-            onSuccess()
-          }
+          setPlaylistUrl("")
+          setImportError(null)
+          setImportSuccess(null)
+          setIsOpen(false)
         }, 1500)
       }
     } catch (error) {

@@ -31,6 +31,7 @@ export default function CoursesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
   const [progressData, setProgressData] = useState<any[]>([])
   const [playlistLimit, setPlaylistLimit] = useState({
     canImport: true,
@@ -55,6 +56,7 @@ export default function CoursesPage() {
     if (!user) return
 
     try {
+      setLoading(true)
       const coursesData = await getCoursesAction()
 
       // Update courses state with null safety
@@ -97,8 +99,9 @@ export default function CoursesPage() {
       })
     } finally {
       setLoading(false)
+      setInitialLoading(false)
     }
-  }, [user?.id])
+  }, [user])
 
   useEffect(() => {
     if (user) {
@@ -172,7 +175,7 @@ export default function CoursesPage() {
     }
   }
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="loading-spinner" />
