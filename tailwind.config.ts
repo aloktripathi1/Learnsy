@@ -17,7 +17,14 @@ const config: Config = {
   			lg: '2rem',
   			xl: '2rem',
   			'2xl': '3rem',
-  		},
+			},
+			screens: {
+				sm: '600px',
+				md: '768px',
+				lg: '960px',
+				xl: '1040px',
+				'2xl': '1120px',
+			},
   	},
   	extend: {
   		colors: {
