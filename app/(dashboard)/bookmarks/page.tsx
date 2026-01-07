@@ -41,7 +41,7 @@ export default function BookmarksPage() {
     if (user) {
       loadBookmarks()
     }
-  }, [user, refreshKey])
+  }, [user?.id, refreshKey])
 
   useEffect(() => {
     if (searchQuery.trim()) {

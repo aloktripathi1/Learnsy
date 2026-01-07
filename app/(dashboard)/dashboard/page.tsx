@@ -48,7 +48,7 @@ export default function DashboardPage() {
     if (user) {
       loadData()
     }
-  }, [user])
+  }, [user?.id])
 
   const calculateStreak = async () => {
     if (!user) return 0
@@ -186,7 +186,7 @@ export default function DashboardPage() {
       window.removeEventListener("bookmarksUpdated", handleBookmarksUpdate)
       window.removeEventListener("progressUpdated", handleProgressUpdate)
     }
-  }, [user])
+  }, [user?.id])
 
   const resumeCourse = async (course: any) => {
 

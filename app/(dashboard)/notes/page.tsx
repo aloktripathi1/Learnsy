@@ -44,7 +44,7 @@ export default function NotesPage() {
     if (user) {
       loadNotes()
     }
-  }, [user, refreshKey])
+  }, [user?.id, refreshKey])
 
   useEffect(() => {
     if (searchQuery.trim()) {

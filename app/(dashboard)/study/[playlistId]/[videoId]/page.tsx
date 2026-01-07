@@ -66,34 +66,44 @@ export default function StudyPage() {
 
     try {
       setLoading(true)
+      console.log("Loading course data for:", playlistId, videoId)
       
-      // Load course and videos
-      const courses = await getCoursesAction()
+      // Load data in parallel for better performance
+      const [courses, videosData, progressData] = await Promise.all([
+        getCoursesAction(),
+        getVideosAction(playlistId),
+        getUserProgressAction()
+      ])
+
+      console.log("Data loaded:", { 
+        coursesCount: courses.length, 
+        videosCount: videosData.length,
+        progressCount: progressData.length 
+      })
+      
+      // Find current course
       const foundCourse = courses.find((c) => c.id === playlistId)
-      
       if (!foundCourse) {
         console.error("Course not found")
-        router.push("/courses")
+        alert("Course not found. Redirecting to courses page.")
+        setLoading(false)
+        router.replace("/courses")
         return
       }
 
       setCourse(foundCourse)
-
-      // Load videos for this course
-      const videosData = await getVideosAction(playlistId)
       setVideos(videosData)
 
       // Find current video
       const video = videosData.find((v) => v.video_id === videoId)
       if (!video) {
         console.error("Video not found")
-        router.push(`/courses`)
+        alert("Video not found. Redirecting to courses page.")
+        setLoading(false)
+        router.replace("/courses")
         return
       }
       setCurrentVideo(video)
-
-      // Load progress
-      const progressData = await getUserProgressAction()
       setProgress(progressData)
 
       // Load existing notes
@@ -107,18 +117,21 @@ export default function StudyPage() {
       if (timestamp && timestamp.timestamp > 0) {
         setSavedTimestamp(timestamp.timestamp)
       }
+
+      console.log("Course loaded successfully")
     } catch (error) {
       console.error("Error loading study data:", error)
+      alert(`Failed to load course: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
-  }, [user, playlistId, videoId, router])
+  }, [user?.id, playlistId, videoId, router])
 
   useEffect(() => {
     if (user) {
       loadData()
     }
-  }, [user, loadData])
+  }, [user?.id, loadData])
 
   const toggleComplete = async () => {
     if (!user) return

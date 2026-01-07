@@ -31,6 +31,7 @@ export default function CoursesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
+  const [progressData, setProgressData] = useState<any[]>([])
   const [playlistLimit, setPlaylistLimit] = useState({
     canImport: true,
     currentCount: 0,
@@ -42,12 +43,6 @@ export default function CoursesPage() {
   const [courseToDelete, setCourseToDelete] = useState<Course | null>(null)
 
   useEffect(() => {
-    if (user) {
-      loadCourses()
-    }
-  }, [user])
-
-  useEffect(() => {
     if (searchQuery.trim()) {
       const filtered = courses.filter((course) => course.title.toLowerCase().includes(searchQuery.toLowerCase()))
       setFilteredCourses(filtered)
@@ -56,7 +51,7 @@ export default function CoursesPage() {
     }
   }, [searchQuery, courses])
 
-  const loadCourses = async () => {
+  const loadCourses = useCallback(async () => {
     if (!user) return
 
     try {
@@ -66,6 +61,10 @@ export default function CoursesPage() {
       const courses = coursesData || []
       setCourses(courses)
       setFilteredCourses(courses)
+
+      // Load progress data once for all courses (lightweight)
+      const progress = await getUserProgressAction()
+      setProgressData(progress)
 
       // Calculate playlist limit from actual data
       const maxCount = 4 // This is the MAX_PLAYLISTS_PER_USER value
@@ -89,6 +88,7 @@ export default function CoursesPage() {
       // Set safe defaults
       setCourses([])
       setFilteredCourses([])
+      setProgressData([])
       setPlaylistLimit({
         canImport: true,
         currentCount: 0,
@@ -98,17 +98,26 @@ export default function CoursesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.id])
+
+  useEffect(() => {
+    if (user) {
+      loadCourses()
+    }
+  }, [user?.id, loadCourses])
 
   const continueCourse = useCallback(async (course: Course) => {
     try {
+      console.log("Starting course:", course.id)
       const videos = await getVideosAction(course.id)
       
       if (!videos || videos.length === 0) {
         console.error("No videos found for course")
+        alert("This course has no videos. Please try reimporting the playlist.")
         return
       }
 
+      console.log(`Loaded ${videos.length} videos`)
       const progress = await getUserProgressAction()
 
       const nextVideo = videos.find((v) => {
@@ -116,14 +125,14 @@ export default function CoursesPage() {
         return !videoProgress?.completed
       })
 
-      if (nextVideo) {
-        router.push(`/study/${course.id}/${nextVideo.video_id}`)
-      } else if (videos.length > 0) {
-        // If all videos are completed, go to first video
-        router.push(`/study/${course.id}/${videos[0].video_id}`)
-      }
+      const targetVideo = nextVideo || videos[0]
+      console.log("Navigating to video:", targetVideo.video_id)
+      
+      // Navigate to the study page
+      router.push(`/study/${course.id}/${targetVideo.video_id}`)
     } catch (error) {
       console.error("Error continuing course:", error)
+      alert(`Failed to open course: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }, [router])
 
@@ -236,6 +245,7 @@ export default function CoursesPage() {
             <CourseCard
               key={course.id}
               course={course}
+              progress={progressData}
               onContinue={continueCourse}
               onDelete={(course) => setCourseToDelete(course)}
             />
@@ -282,42 +292,49 @@ export default function CoursesPage() {
 
 function CourseCard({
   course,
+  progress,
   onContinue,
   onDelete,
 }: {
   course: Course
+  progress: any[]
   onContinue: (course: Course) => void
   onDelete: (course: Course) => void
 }) {
-  const { user } = useAuth()
-  const [completedCount, setCompletedCount] = useState(0)
+  const [videos, setVideos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Load videos only once for this course
   useEffect(() => {
-    if (user) {
-      loadProgress()
+    let mounted = true
+    
+    const loadVideos = async () => {
+      try {
+        const vids = await getVideosAction(course.id)
+        if (mounted) {
+          setVideos(vids)
+        }
+      } catch (error) {
+        console.error("Error loading videos:", error)
+      } finally {
+        if (mounted) {
+          setLoading(false)
+        }
+      }
     }
-  }, [user, course.id])
-
-  const loadProgress = async () => {
-    if (!user) return
-
-    try {
-      const videos = await getVideosAction(course.id)
-      const progress = await getUserProgressAction()
-
-      const completed = videos.filter((v) => {
-        const videoProgress = progress.find((p) => p.video_id === v.video_id)
-        return videoProgress?.completed
-      }).length
-
-      setCompletedCount(completed)
-    } catch (error) {
-      console.error("Error loading progress:", error)
-    } finally {
-      setLoading(false)
+    
+    loadVideos()
+    
+    return () => {
+      mounted = false
     }
-  }
+  }, [course.id])
+
+  // Calculate completed count from loaded videos and passed progress
+  const completedCount = videos.filter((v) => {
+    const videoProgress = progress.find((p) => p.video_id === v.video_id)
+    return videoProgress?.completed
+  }).length
 
   const progressPercent = course.video_count > 0 ? (completedCount / course.video_count) * 100 : 0
 
@@ -373,7 +390,7 @@ function CourseCard({
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Progress</span>
             {loading ? (
-              <span className="text-muted-foreground">Loading...</span>
+              <span className="text-muted-foreground text-xs">Loading...</span>
             ) : (
               <span className="font-medium">
                 {completedCount}/{course.video_count} completed

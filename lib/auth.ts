@@ -1,10 +1,11 @@
 "use client"
 
 import { useUser, useClerk } from "@clerk/nextjs"
+import { useMemo } from "react"
 
 // Helper hook for compatibility with existing code
 export function useAuth() {
-  const { user, isLoaded } = useUser()
+  const { user: clerkUser, isLoaded } = useUser()
   const { signOut, openSignIn, redirectToSignIn } = useClerk()
 
   const handleSignIn = async () => {
@@ -19,17 +20,21 @@ export function useAuth() {
     }
   }
 
-  return {
-    user: user
+  const user = useMemo(() => {
+    return clerkUser
       ? {
-          id: user.id,
-          email: user.primaryEmailAddress?.emailAddress || "",
+          id: clerkUser.id,
+          email: clerkUser.primaryEmailAddress?.emailAddress || "",
           user_metadata: {
-            full_name: user.fullName || "",
-            avatar_url: user.imageUrl || "",
+            full_name: clerkUser.fullName || "",
+            avatar_url: clerkUser.imageUrl || "",
           },
         }
-      : null,
+      : null
+  }, [clerkUser?.id, clerkUser?.primaryEmailAddress?.emailAddress, clerkUser?.fullName, clerkUser?.imageUrl])
+
+  return {
+    user,
     loading: !isLoaded,
     signIn: handleSignIn,
     signInWithGoogle: handleSignIn,
