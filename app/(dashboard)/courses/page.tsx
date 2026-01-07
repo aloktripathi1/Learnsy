@@ -55,12 +55,17 @@ export default function CoursesPage() {
   const loadCourses = useCallback(async () => {
     if (!user) return
 
+    console.log('Loading courses...')
+    
     try {
       setLoading(true)
+      
+      // Force a hard refresh of the data
       const coursesData = await getCoursesAction()
 
       // Update courses state with null safety
       const courses = coursesData || []
+      console.log('Loaded courses:', courses.length, courses.map(c => c.title))
       setCourses(courses)
       setFilteredCourses(courses)
 
@@ -85,6 +90,8 @@ export default function CoursesPage() {
         totalCourses: currentCount,
         limit: { current: currentCount, max: maxCount, remaining },
       })
+      
+      return true
     } catch (error) {
       console.error("Error loading courses:", error)
       // Set safe defaults
@@ -97,11 +104,53 @@ export default function CoursesPage() {
         maxCount: 4,
         remaining: 4,
       })
+      return false
     } finally {
       setLoading(false)
       setInitialLoading(false)
     }
   }, [user])
+
+  const handleImportSuccess = useCallback(
+    async (course?: Course) => {
+      let optimisticCourses: Course[] | null = null
+
+      if (course) {
+        setCourses((prev) => {
+          const withoutImported = prev.filter((c) => c.id !== course.id)
+          optimisticCourses = [course, ...withoutImported]
+          return optimisticCourses
+        })
+
+        setFilteredCourses((prev) => {
+          if (!optimisticCourses) {
+            return prev
+          }
+
+          if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase()
+            return optimisticCourses.filter((c) => c.title.toLowerCase().includes(query))
+          }
+
+          return optimisticCourses
+        })
+
+        setPlaylistLimit((prev) => {
+          const currentCount = Math.min(prev.maxCount, prev.currentCount + 1)
+          const remaining = Math.max(0, prev.maxCount - currentCount)
+          return {
+            ...prev,
+            currentCount,
+            remaining,
+            canImport: currentCount < prev.maxCount,
+          }
+        })
+      }
+
+      await loadCourses()
+    },
+    [loadCourses, searchQuery],
+  )
 
   useEffect(() => {
     if (user) {
@@ -111,14 +160,15 @@ export default function CoursesPage() {
 
   // Listen for course updates from import modal
   useEffect(() => {
-    const handleCoursesUpdate = () => {
+    const handleCoursesUpdate = (event: Event) => {
       console.log("Courses update event received, refreshing...")
-      loadCourses()
+      const importedCourse = (event as CustomEvent<Course | undefined>).detail
+      handleImportSuccess(importedCourse)
     }
 
-    window.addEventListener("coursesUpdated", handleCoursesUpdate)
-    return () => window.removeEventListener("coursesUpdated", handleCoursesUpdate)
-  }, [loadCourses])
+    window.addEventListener("coursesUpdated", handleCoursesUpdate as EventListener)
+    return () => window.removeEventListener("coursesUpdated", handleCoursesUpdate as EventListener)
+  }, [handleImportSuccess])
 
   const continueCourse = useCallback(async (course: Course) => {
     try {
@@ -196,10 +246,10 @@ export default function CoursesPage() {
             </p>
           </div>
           <ImportPlaylistModal
-            onSuccess={loadCourses}
+            onSuccess={handleImportSuccess}
             playlistLimit={playlistLimit}
             trigger={
-              <Button className="touch-target" disabled={!playlistLimit.canImport}>
+              <Button className="touch-target">
                 <Plus className="h-4 w-4 mr-2" />
                 Import Playlist
               </Button>
@@ -246,7 +296,7 @@ export default function CoursesPage() {
             </p>
             {courses.length === 0 && playlistLimit.canImport && (
               <ImportPlaylistModal
-                onSuccess={loadCourses}
+                onSuccess={handleImportSuccess}
                 playlistLimit={playlistLimit}
                 trigger={<Button className="touch-target">Import Playlist</Button>}
               />

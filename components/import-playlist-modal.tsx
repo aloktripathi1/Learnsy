@@ -8,9 +8,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { PlaylistUrlInput } from "@/components/playlist-url-input"
 import { Plus, AlertCircle, CheckCircle, X } from "lucide-react"
 import { useAuth } from "@/lib/auth"
+import type { Course } from "@/lib/db"
 
 interface ImportPlaylistModalProps {
-  onSuccess?: () => void
+  onSuccess?: (course?: Course) => void | Promise<void>
   trigger?: React.ReactNode
   playlistLimit?: {
     canImport: boolean
@@ -66,47 +67,67 @@ export function ImportPlaylistModal({
 
     try {
       // Use streaming API for real-time progress
-      const response = await fetch('/api/import-playlist-stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playlistUrl })
+      const response = await fetch("/api/import-playlist-stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playlistUrl }),
       })
 
       if (!response.ok || !response.body) {
-        throw new Error('Failed to start import')
+        throw new Error("Failed to start import")
       }
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
 
       let result: any = null
+      let buffer = ""
+
+      const processEvent = (eventChunk: string) => {
+        const lines = eventChunk.split(/\r?\n/)
+
+        for (const rawLine of lines) {
+          const line = rawLine.trim()
+          if (!line.startsWith("data: ")) continue
+
+          try {
+            const data = JSON.parse(line.slice(6))
+
+            if (data.type === "progress") {
+              setImportProgress(data.progress)
+              setProgressMessage(data.message)
+            } else if (data.type === "success") {
+              result = data
+            } else if (data.type === "error") {
+              throw new Error(data.error)
+            }
+          } catch (eventError) {
+            console.warn("Failed to parse import event", eventError)
+          }
+        }
+      }
 
       while (true) {
         const { done, value } = await reader.read()
-        
-        if (done) break
 
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\\n')
+        if (value) {
+          const chunk = decoder.decode(value, { stream: !done })
+          buffer += chunk.replace(/\r/g, "")
+          const parts = buffer.split("\n\n")
+          buffer = parts.pop() ?? ""
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6))
-              
-              if (data.type === 'progress') {
-                setImportProgress(data.progress)
-                setProgressMessage(data.message)
-              } else if (data.type === 'success') {
-                result = data
-              } else if (data.type === 'error') {
-                throw new Error(data.error)
-              }
-            } catch (e) {
-              // Ignore JSON parse errors for incomplete chunks
+          for (const part of parts) {
+            if (part.trim()) {
+              processEvent(part)
             }
           }
         }
+
+        if (done) break
+      }
+
+      if (buffer.trim()) {
+        processEvent(buffer)
       }
 
       if (result?.success) {
@@ -115,19 +136,27 @@ export function ImportPlaylistModal({
             `Successfully imported "${result.course?.title}" with ${result.course?.videoCount || 0} videos!`,
         )
 
-        // Call onSuccess callback immediately to trigger parent refresh
+        // Call onSuccess immediately to refresh parent with latest course data
         if (onSuccess) {
-          onSuccess()
+          try {
+            await Promise.resolve(onSuccess(result.course as Course))
+          } catch (callbackError) {
+            console.error("Error in onSuccess callback:", callbackError)
+          }
         }
 
-        // Dispatch event for any other listeners
-        window.dispatchEvent(new CustomEvent("coursesUpdated"))
-
-        // Close modal after showing success message
+        // Broadcast to any listeners (e.g., other tabs/pages)
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("coursesUpdated", { detail: result.course as Course }))
+        }
+        
+        // Close modal after brief success message
         setTimeout(() => {
           setPlaylistUrl("")
           setImportError(null)
           setImportSuccess(null)
+          setImportProgress(0)
+          setProgressMessage("")
           setIsOpen(false)
         }, 1500)
       }
@@ -255,14 +284,36 @@ export function ImportPlaylistModal({
 
   return (
     <>
-      <div onClick={() => setIsOpen(true)}>
-        {trigger || (
-          <Button className="enhanced-button" disabled={!playlistLimit.canImport}>
-            <Plus className="h-4 w-4 mr-2" />
-            Import Playlist
-          </Button>
-        )}
-      </div>
+      {trigger ? (
+        <div 
+          onClick={() => {
+            if (playlistLimit.canImport) {
+              setIsOpen(true)
+            } else {
+              // Show alert if limit is reached
+              alert(`You've reached the maximum limit of ${playlistLimit.maxCount} playlists. Delete an existing course to import a new one.`)
+            }
+          }}
+          className={!playlistLimit.canImport ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+        >
+          {trigger}
+        </div>
+      ) : (
+        <Button 
+          onClick={() => {
+            if (playlistLimit.canImport) {
+              setIsOpen(true)
+            } else {
+              alert(`You've reached the maximum limit of ${playlistLimit.maxCount} playlists. Delete an existing course to import a new one.`)
+            }
+          }}
+          className="enhanced-button"
+          variant={!playlistLimit.canImport ? "secondary" : "default"}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Import Playlist
+        </Button>
+      )}
       {mounted && modalContent && createPortal(modalContent, document.body)}
     </>
   )
