@@ -10,9 +10,11 @@ export function useAuth() {
 
   const handleSignIn = async () => {
     try {
-      // Use Clerk's sign-in with Google strategy
+      // Use absolute URL for redirect
+      const redirectUrl = `${window.location.origin}/dashboard`
+      
       await clerk.redirectToSignIn({
-        redirectUrl: '/dashboard',
+        redirectUrl,
       })
     } catch (error) {
       console.error("Sign-in error:", error)
@@ -20,7 +22,7 @@ export function useAuth() {
     }
   }
 
-  const user = useMemo(() => {
+  const user = useMemo(() => {0
     return clerkUser
       ? {
           id: clerkUser.id,

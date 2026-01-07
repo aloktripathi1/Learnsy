@@ -20,22 +20,15 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useRouter } from "next/navigation"
 
 export default function HomePage() {
-  const [isLoading, setIsLoading] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { signInWithGoogle } = useAuth()
+  const { user } = useAuth()
+  const router = useRouter()
 
-  const handleSignIn = async () => {
-    try {
-      setIsLoading(true)
-      await signInWithGoogle()
-    } catch (error) {
-      console.error("Sign in error:", error)
-      alert("Failed to sign in. Please try again.")
-    } finally {
-      setIsLoading(false)
-    }
+  const handleSignIn = () => {
+    router.push("/sign-in")
   }
 
   const features = [
@@ -79,18 +72,9 @@ export default function HomePage() {
 
             {/* Desktop Sign In */}
             <div className="hidden sm:block">
-              <Button onClick={handleSignIn} disabled={isLoading} size="lg" className="gap-2 touch-target">
-                {isLoading ? (
-                  <>
-                    <div className="loading-spinner" />
-                    Signing in...
-                  </>
-                ) : (
-                  <>
-                    Sign In
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
+              <Button onClick={handleSignIn} size="lg" className="gap-2 touch-target">
+                Sign In
+                <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
 
@@ -110,18 +94,9 @@ export default function HomePage() {
           {/* Mobile Menu */}
           {mobileMenuOpen && (
             <div className="sm:hidden mt-4 pb-4 border-t pt-4">
-              <Button onClick={handleSignIn} disabled={isLoading} className="w-full gap-2 touch-target">
-                {isLoading ? (
-                  <>
-                    <div className="loading-spinner" />
-                    Signing in...
-                  </>
-                ) : (
-                  <>
-                    Sign In
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
+              <Button onClick={handleSignIn} className="w-full gap-2 touch-target">
+                Sign In
+                <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
           )}
@@ -147,18 +122,9 @@ export default function HomePage() {
               focused without distractions.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button onClick={handleSignIn} disabled={isLoading} size="lg" className="gap-2 touch-target">
-                {isLoading ? (
-                  <>
-                    <div className="loading-spinner" />
-                    Signing in...
-                  </>
-                ) : (
-                  <>
-                    Get Started
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
+              <Button onClick={handleSignIn} size="lg" className="gap-2 touch-target">
+                Get Started Free
+                <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
           </div>
@@ -269,18 +235,9 @@ export default function HomePage() {
                 <p className="text-lg text-muted-foreground mb-6 sm:mb-8 responsive-text">
                   Join thousands of learners who have already improved their study habits with Learnsy.
                 </p>
-                <Button onClick={handleSignIn} disabled={isLoading} size="lg" className="gap-2 touch-target">
-                  {isLoading ? (
-                    <>
-                      <div className="loading-spinner" />
-                      Signing in...
-                    </>
-                  ) : (
-                    <>
-                      Start Learning Today
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
+                <Button onClick={handleSignIn} size="lg" className="gap-2 touch-target">
+                  Get Started Free
+                  <ArrowRight className="w-4 h-4" />
                 </Button>
               </div>
             </div>
