@@ -6,13 +6,15 @@ import { useMemo } from "react"
 // Helper hook for compatibility with existing code
 export function useAuth() {
   const { user: clerkUser, isLoaded } = useUser()
-  const { signOut, openSignIn, redirectToSignIn } = useClerk()
+  const clerk = useClerk()
 
   const handleSignIn = async () => {
     try {
-      // Redirect to Clerk's sign-in page
-      await redirectToSignIn({
+      // Redirect directly to Google OAuth, skipping Clerk's sign-in page
+      await clerk.authenticateWithRedirect({
+        strategy: 'oauth_google',
         redirectUrl: '/dashboard',
+        redirectUrlComplete: '/dashboard'
       })
     } catch (error) {
       console.error("Sign-in error:", error)
@@ -38,7 +40,7 @@ export function useAuth() {
     loading: !isLoaded,
     signIn: handleSignIn,
     signInWithGoogle: handleSignIn,
-    signOut: () => signOut(),
+    signOut: () => clerk.signOut(),
     error: null,
   }
 }
