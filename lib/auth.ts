@@ -13,8 +13,8 @@ export function useAuth() {
       // Redirect directly to Google OAuth, skipping Clerk's sign-in page
       await clerk.authenticateWithRedirect({
         strategy: 'oauth_google',
-        redirectUrl: '/dashboard',
-        redirectUrlComplete: '/dashboard'
+        redirectUrl: window.location.origin + '/dashboard',
+        redirectUrlComplete: window.location.origin + '/dashboard'
       })
     } catch (error) {
       console.error("Sign-in error:", error)
