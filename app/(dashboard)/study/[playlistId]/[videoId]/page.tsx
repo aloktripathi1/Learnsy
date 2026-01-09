@@ -262,10 +262,46 @@ export default function StudyPage() {
     // Save timestamp every 5 seconds
     try {
       await saveVideoTimestampAction(videoId, Math.floor(currentTime), Math.floor(duration))
+      
+      // Auto-complete video when 30% watch time is reached
+      const watchPercentage = (currentTime / duration) * 100
+      if (watchPercentage >= 30 && !isCompleted) {
+        await updateProgressAction({
+          video_id: videoId,
+          completed: true,
+          bookmarked: isBookmarked,
+        })
+        
+        // Update local state
+        setProgress((prev) =>
+          prev.map((p) =>
+            p.video_id === videoId ? { ...p, completed: true } : p
+          ).concat(
+            prev.find((p) => p.video_id === videoId)
+              ? []
+              : [{
+                  id: crypto.randomUUID(),
+                  user_id: user.id,
+                  video_id: videoId,
+                  completed: true,
+                  bookmarked: isBookmarked,
+                  notes: notes,
+                  updated_at: new Date().toISOString(),
+                }]
+          )
+        )
+        
+        // Update streak
+        const today = new Date().toISOString().split("T")[0]
+        await updateStreakActivityAction(today)
+        
+        // Dispatch event for other components
+        window.dispatchEvent(new Event("progressUpdated"))
+      }
     } catch (error) {
       console.error("Error saving timestamp:", error)
     }
-  }, [user, videoId])
+  }, [user, videoId, isCompleted, isBookmarked, notes])
 
   const handleVideoEnd = async () => {
     if (!isCompleted) {

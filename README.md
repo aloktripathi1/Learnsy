@@ -1,51 +1,59 @@
-# Learnsy
+# Learnsy 🎓
 
-Learnsy is a distraction-free, YouTube-powered study platform designed for deep learning, habit-building, and knowledge retention. It transforms YouTube playlists into structured, streak-based study portals with bookmarking, notes, and real-time progress tracking.
+<div align="center">
 
-> **🎉 Migrated to modern stack!** This app now uses Neon (PostgreSQL), Clerk (Auth), and Vercel for a more reliable and scalable experience.
+![Learnsy](https://img.shields.io/badge/Learnsy-Study%20Platform-blue)
+![Next.js](https://img.shields.io/badge/Next.js-14-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+**A distraction-free, YouTube-powered study platform for deep learning and habit-building**
+
+[Features](#-features) • [Demo](#-demo) • [Getting Started](#-getting-started) • [Tech Stack](#️-tech-stack) • [Contributing](#-contributing)
+
+</div>
 
 ---
 
-## 🔍 Features
+## 🌟 Features
 
-- 📺 **Import YouTube Playlists**  
-  Use any public YouTube playlist to create a custom study course.
+- 📺 **Import YouTube Playlists** - Transform any public YouTube playlist into a structured study course
+- ✅ **Smart Progress Tracking** - Videos auto-complete at 30% watch time with real-time streak updates
+- 🔥 **GitHub-Style Streaks** - Visual heatmap to track your daily learning consistency
+- 📝 **Notes & Bookmarks** - Take notes and bookmark important videos for later review
+- 🎯 **Dashboard Analytics** - Track watched videos, active streaks, and course completion
+- ⚡ **Real-time Updates** - All stats update instantly without page refresh
+- 🌓 **Dark Mode** - Pure black theme for comfortable studying
+- 🔐 **Secure Authentication** - Google OAuth powered by Clerk
+- 📱 **Fully Responsive** - Mobile-friendly with collapsible sidebar navigation
+- ⌨️ **Keyboard Shortcuts** - Fast navigation with hotkeys (C, B, N, P, L)
 
-- ✅ **Video Progress Tracking**  
-  Mark videos as completed, auto-track watched content, and resume seamlessly.
+---
 
-- 🧠 **Notes & Bookmarks**  
-  Save notes for specific videos and bookmark important content for later review.
+## 🎬 Demo
 
-- 🔥 **Streak System**  
-  GitHub-style streak heatmap to track consistent study behavior.
-
-- 👨‍🎓 **Dashboard Overview**  
-  Instant overview of total progress, active streaks, and course stats.
-
-- 🌓 **Dark Mode (Black Theme)**  
-  Built-in pure black theme for eye comfort and visual clarity.
-
-- 🔐 **Google Authentication**  
-  Secure login powered by Clerk with Google OAuth.
-
-- ☁️ **Persistent Storage**  
-  All user data synced and saved to Neon PostgreSQL database.
-
-- 🧭 **Fully Responsive + Sidebar Navigation**  
-  Mobile-friendly layout with collapsible sidebar for focused navigation.
+Coming soon!
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS
-- **Backend**: Next.js API Routes
-- **Database**: Neon (Serverless PostgreSQL)
-- **Authentication**: Clerk with Google OAuth
-- **Video Source**: YouTube Data API v3
-- **Deployment**: Vercel
-- **Styling**: Tailwind CSS + shadcn/ui components
+### Frontend
+- **Framework**: [Next.js 14](https://nextjs.org/) with App Router
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **UI Components**: [shadcn/ui](https://ui.shadcn.com/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+
+### Backend
+- **API**: Next.js API Routes (Server Actions)
+- **Database**: [Neon](https://neon.tech/) (Serverless PostgreSQL)
+- **Authentication**: [Clerk](https://clerk.com/)
+- **External API**: YouTube Data API v3
+
+### Deployment
+- **Hosting**: [Vercel](https://vercel.com/)
+- **Database**: Neon Cloud
 
 ---
 

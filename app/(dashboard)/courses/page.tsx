@@ -170,6 +170,24 @@ export default function CoursesPage() {
     return () => window.removeEventListener("coursesUpdated", handleCoursesUpdate as EventListener)
   }, [handleImportSuccess])
 
+  // Listen for progress updates to refresh course progress in real-time
+  useEffect(() => {
+    const handleProgressUpdate = async () => {
+      console.log("Progress update event received, refreshing progress data...")
+      if (!user) return
+      
+      try {
+        const progress = await getUserProgressAction()
+        setProgressData(progress)
+      } catch (error) {
+        console.error("Error refreshing progress:", error)
+      }
+    }
+
+    window.addEventListener("progressUpdated", handleProgressUpdate)
+    return () => window.removeEventListener("progressUpdated", handleProgressUpdate)
+  }, [user])
+
   const continueCourse = useCallback(async (course: Course) => {
     try {
       console.log("Starting course:", course.id)
@@ -393,6 +411,18 @@ function CourseCard({
       mounted = false
     }
   }, [course.id])
+
+  // Listen for progress updates to recalculate when videos are completed
+  useEffect(() => {
+    const handleProgressUpdate = async () => {
+      // Force recalculation by updating the videos reference
+      // This will trigger the completedCount recalculation below
+      setVideos((prev) => [...prev])
+    }
+
+    window.addEventListener("progressUpdated", handleProgressUpdate)
+    return () => window.removeEventListener("progressUpdated", handleProgressUpdate)
+  }, [])
 
   // Calculate completed count from loaded videos and passed progress
   const completedCount = videos.filter((v) => {
