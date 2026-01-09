@@ -20,14 +20,14 @@ jobs:
             A maintainer will review your issue soon. In the meantime, please make sure you've:
             - Searched for existing issues to avoid duplicates
             - Provided all the necessary information
-            - Followed our [Code of Conduct](../CODE_OF_CONDUCT.md)
+            - Followed our [Code of Conduct](../code_of_conduct.md)
             
             Feel free to ask any questions! 🚀
           pr-message: |
             🎉 Thanks for opening your first pull request! We're excited to review your contribution.
             
             Please make sure you've:
-            - Read our [Contributing Guidelines](../CONTRIBUTING.md)
+            - Read our [Contributing Guidelines](../contributing.md)
             - Tested your changes locally
             - Updated documentation if needed
             - Followed the code style of the project

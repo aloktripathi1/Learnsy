@@ -171,7 +171,7 @@ Before submitting a PR:
 
 ## 📋 Pull Request Process
 
-1. **Update the README.md** if needed
+1. **Update the readme.md** if needed
 2. **Ensure your code builds** without errors
 3. **Test on multiple browsers** if UI changes
 4. **Link related issues** in the PR description
