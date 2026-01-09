@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -104,7 +104,7 @@ export default function DashboardPage() {
     }
   }
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!user) return
 
     try {
@@ -159,7 +159,7 @@ export default function DashboardPage() {
         bookmarkedVideos: 0,
       })
     }
-  }
+  }, [user])
 
   useEffect(() => {
     const handleNotesUpdate = () => {
@@ -193,7 +193,7 @@ export default function DashboardPage() {
       window.removeEventListener("progressUpdated", handleProgressUpdate)
       window.removeEventListener("coursesUpdated", handleCoursesUpdate)
     }
-  }, [user?.id])
+  }, [loadData])
 
   const resumeCourse = async (course: any) => {
 
