@@ -1,6 +1,28 @@
 {
   "name": "learnsy",
   "version": "0.1.0",
+  "description": "A distraction-free, YouTube-powered study platform for deep learning and habit-building",
+  "author": "Alok Tripathi <https://github.com/aloktripathi1>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aloktripathi1/learnsy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aloktripathi1/learnsy/issues"
+  },
+  "homepage": "https://github.com/aloktripathi1/learnsy#readme",
+  "keywords": [
+    "education",
+    "learning",
+    "youtube",
+    "study-platform",
+    "nextjs",
+    "typescript",
+    "streak-tracking",
+    "notes",
+    "bookmarks"
+  ],
   "private": true,
   "scripts": {
     "dev": "next dev",
