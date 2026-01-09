@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth"
-import { DatabaseService } from "@/lib/database"
+import { getStreakActivityAction } from "@/app/actions/courses"
 
 export function StreakCalendar() {
   const { user } = useAuth()
@@ -12,13 +12,22 @@ export function StreakCalendar() {
     if (user) {
       loadStreakData()
     }
+    
+    const handleProgressUpdate = () => {
+      loadStreakData()
+    }
+    
+    window.addEventListener("progressUpdated", handleProgressUpdate)
+    return () => {
+      window.removeEventListener("progressUpdated", handleProgressUpdate)
+    }
   }, [user])
 
   const loadStreakData = async () => {
     if (!user) return
 
     try {
-      const activities = await DatabaseService.getStreakActivity(user.id)
+      const activities = await getStreakActivityAction()
       const data: Record<string, number> = {}
 
       activities.forEach((activity) => {

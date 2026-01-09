@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Calendar, Clock, Play, X, Zap, Target } from "lucide-react"
 import { useAuth } from "@/lib/auth"
-import { DatabaseService } from "@/lib/database"
+import { getStreakActivityAction, getVideosAction, getUserProgressAction } from "@/app/actions/courses"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 
@@ -50,7 +50,7 @@ export function DailyReminder({ courses, stats }: DailyReminderProps) {
 
     try {
       // Get the most recent activity from streak data
-      const streakData = await DatabaseService.getStreakActivity(user.id)
+      const streakData = await getStreakActivityAction()
 
       if (streakData.length > 0) {
         // Sort by date descending to get the most recent
@@ -165,8 +165,8 @@ export function DailyReminder({ courses, stats }: DailyReminderProps) {
 
     try {
       const firstCourse = courses[0]
-      const videos = await DatabaseService.getVideos(firstCourse.id)
-      const progress = await DatabaseService.getUserProgress(user!.id)
+      const videos = await getVideosAction(firstCourse.id)
+      const progress = await getUserProgressAction()
 
       const nextVideo = videos.find((v) => {
         const videoProgress = progress.find((p) => p.video_id === v.video_id)
