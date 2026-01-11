@@ -120,20 +120,6 @@ export function YouTubePlayer({ videoId, startTime = 0, onProgress, onEnd, class
           if (duration > 0) {
             // Call onProgress with time values
             onProgress?.(currentTime, duration)
-
-            const progress = (currentTime / duration) * 100
-
-            // Auto-complete at 90% progress
-            if (progress >= 90 && !hasCompleted) {
-              console.log(`Video reached ${progress.toFixed(1)}% - auto-completing`)
-              setHasCompleted(true)
-              onEnd?.()
-              stopProgressTracking()
-              stopTimestampTracking()
-
-              // Dispatch progress update event
-              window.dispatchEvent(new CustomEvent("progressUpdated"))
-            }
           }
         } catch (error) {
           console.error("Error tracking progress:", error)
