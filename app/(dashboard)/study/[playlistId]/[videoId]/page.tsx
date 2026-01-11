@@ -605,7 +605,7 @@ export default function StudyPage() {
       </div>
 
       {/* Playlist Sidebar - Desktop */}
-      <div className="hidden lg:block w-96 border-l bg-card overflow-hidden flex-shrink-0">
+      <div className="hidden lg:block w-72 border-l bg-card overflow-hidden flex-shrink-0">
         <PlaylistSidebar
           videos={videos}
           progress={progress}
