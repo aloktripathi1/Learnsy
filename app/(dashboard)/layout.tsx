@@ -45,7 +45,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider defaultOpen={false}>
       <AppSidebar />
       <SidebarInset className="content-transition pb-16 md:pb-0">
         <main className="flex-1 overflow-auto">{children}</main>
