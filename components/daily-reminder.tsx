@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { Play, X, Zap, Target, Clock, Calendar } from "lucide-react"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth"
 import { getStreakActivityAction, getVideosAction, getUserProgressAction } from "@/app/actions/courses"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -29,8 +29,8 @@ interface ReminderMessage {
 }
 
 export function DailyReminder({ courses, stats }: DailyReminderProps) {
-  const { data: session } = useSession()
-  const user = session?.user
+  
+  const { user } = useAuth()
   const router = useRouter()
 
   const [lastActivity, setLastActivity]         = useState<Date | null | undefined>(undefined)

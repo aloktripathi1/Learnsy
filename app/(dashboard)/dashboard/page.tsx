@@ -34,7 +34,7 @@ import {
 import { StreakCalendar } from "@/components/streak-calendar"
 import { DailyReminder } from "@/components/daily-reminder"
 import { ImportPlaylistModal } from "@/components/import-playlist-modal"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth"
 import { checkPlaylistLimit } from "@/app/actions/youtube"
 import type { Course, StreakActivity } from "@/types"
 import { MAX_PLAYLISTS_FREE } from "@/lib/config"
@@ -106,8 +106,8 @@ function CourseRowSkeleton() {
 }
 
 export default function DashboardPage() {
-  const { data: session } = useSession()
-  const user = session?.user
+  
+  const { user } = useAuth()
   const router = useRouter()
 
   const [courses, setCourses] = useState<Course[]>([])

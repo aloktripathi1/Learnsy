@@ -13,7 +13,7 @@ import {
   X,
   Zap,
 } from "lucide-react"
-import { useSession, signOut } from "next-auth/react"
+import { useAuth } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -51,13 +51,12 @@ const navigation = [
 
 export function AppSidebar() {
   const pathname   = usePathname()
-  const { data: session } = useSession()
+  const { user, signOut } = useAuth()
   const { state, toggleSidebar } = useSidebar()
   const isCollapsed = state === "collapsed"
-  const user = session?.user
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: "/" })
+    await signOut()
   }
 
   return (

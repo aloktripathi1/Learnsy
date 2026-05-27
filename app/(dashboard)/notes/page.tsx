@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { FileText, Search, Edit3, Trash2, Play, Clock, Check } from "lucide-react"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth"
 import { getNotesAction, updateProgressAction } from "@/app/actions/courses"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -49,8 +49,8 @@ function NoteSkeleton() {
 }
 
 export default function NotesPage() {
-  const { data: session } = useSession()
-  const user = session?.user
+  
+  const { user } = useAuth()
   const router = useRouter()
 
   const [notes, setNotes]             = useState<NoteItem[]>([])

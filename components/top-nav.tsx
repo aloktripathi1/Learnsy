@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Menu } from "lucide-react"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth"
 import { useEffect, useState } from "react"
 import { getStreakActivityAction } from "@/app/actions/courses"
 
@@ -26,8 +26,7 @@ function getPageTitle(pathname: string): string {
 export function TopNav() {
   const pathname = usePathname()
   const { toggleSidebar } = useSidebar()
-  const { data: session } = useSession()
-  const user = session?.user
+  const { user } = useAuth()
   const [streak, setStreak] = useState(0)
 
   useEffect(() => {

@@ -1,22 +1,36 @@
+"use client"
+
 import type React from "react"
-import { redirect } from "next/navigation"
-import { auth } from "@/lib/auth"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
-import { TopNav } from "@/components/top-nav"
 import { MobileNav } from "@/components/mobile-nav"
+import { TopNav } from "@/components/top-nav"
+import { useAuth } from "@/lib/auth"
+import { ensureUserAction } from "@/app/actions/user"
 
-export default async function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const session = await auth()
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [isReady, setIsReady] = useState(false)
+  const { user, loading } = useAuth()
+  const router = useRouter()
 
-  // Redirect unauthenticated users to the landing page.
-  // Auth.js v5 is a stub in dev — once wired up this gate is enforced for real.
-  if (session !== null && !session?.user) {
-    redirect("/")
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        router.push("/")
+      } else {
+        ensureUserAction().then(() => setIsReady(true))
+      }
+    }
+  }, [user, loading, router])
+
+  if (loading || !isReady) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-black">
+        <div className="w-8 h-8 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (

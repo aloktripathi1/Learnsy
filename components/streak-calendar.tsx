@@ -1,15 +1,15 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth"
 import { getStreakActivityAction } from "@/app/actions/courses"
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 const DAYS   = ["","Mon","","Wed","","Fri",""]
 
 export function StreakCalendar() {
-  const { data: session } = useSession()
-  const user = session?.user
+  
+  const { user } = useAuth()
   const [activityMap, setActivityMap] = useState<Record<string, number>>({})
   const [loading, setLoading]         = useState(true)
 

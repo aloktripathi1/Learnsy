@@ -1,8 +1,9 @@
 "use client"
 
+// Auth is provided by <ClerkProvider> in app/layout.tsx.
+// This file is kept as a no-op for any remaining imports.
 import type React from "react"
-import { SessionProvider } from "next-auth/react"
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  return <SessionProvider>{children}</SessionProvider>
+  return <>{children}</>
 }

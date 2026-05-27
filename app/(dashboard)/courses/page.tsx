@@ -15,7 +15,7 @@ import {
   Plus,
   Clock,
 } from "lucide-react"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth"
 import {
   getCoursesAction,
   getVideosAction,
@@ -218,8 +218,8 @@ function CourseCard({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function CoursesPage() {
-  const { data: session } = useSession()
-  const user = session?.user
+  
+  const { user } = useAuth()
   const router = useRouter()
 
   const [courses, setCourses] = useState<Course[]>([])

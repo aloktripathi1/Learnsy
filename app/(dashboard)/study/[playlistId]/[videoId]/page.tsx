@@ -19,7 +19,7 @@ import {
   PlayCircle,
   ArrowLeft,
 } from "lucide-react"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth"
 import { YouTubePlayer } from "@/components/youtube-player"
 import {
   getCoursesAction,
@@ -195,8 +195,8 @@ function PlaylistSidebar({
 export default function StudyPage() {
   const params = useParams()
   const router = useRouter()
-  const { data: session } = useSession()
-  const user = session?.user
+  
+  const { user } = useAuth()
 
   const playlistId = params.playlistId as string
   const videoId    = params.videoId    as string

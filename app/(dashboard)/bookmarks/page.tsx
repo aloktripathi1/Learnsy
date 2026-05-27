@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Bookmark, Search, Play, Trash2, Clock } from "lucide-react"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth"
 import { getBookmarksAction, updateProgressAction } from "@/app/actions/courses"
 import { toast } from "sonner"
 
@@ -45,8 +45,8 @@ function BookmarkSkeleton() {
 }
 
 export default function BookmarksPage() {
-  const { data: session } = useSession()
-  const user = session?.user
+  
+  const { user } = useAuth()
   const router = useRouter()
 
   const [bookmarks, setBookmarks]     = useState<BookmarkItem[]>([])

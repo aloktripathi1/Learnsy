@@ -14,7 +14,7 @@ import {
   X,
   Sparkles,
 } from "lucide-react"
-import { signIn } from "next-auth/react"
+import { useClerk } from "@clerk/nextjs"
 
 const features = [
   {
@@ -46,7 +46,8 @@ const benefits = [
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const handleSignIn = () => signIn("google", { callbackUrl: "/dashboard" })
+  const { redirectToSignIn } = useClerk()
+  const handleSignIn = () => redirectToSignIn({ redirectUrl: "/dashboard" })
 
   return (
     <div className="min-h-screen bg-black text-white">

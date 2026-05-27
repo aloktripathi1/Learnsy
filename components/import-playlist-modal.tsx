@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth"
 import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -27,8 +27,8 @@ export function ImportPlaylistModal({
   trigger,
   playlistLimit = { canImport: true, currentCount: 0, maxCount: MAX_PLAYLISTS_FREE, remaining: MAX_PLAYLISTS_FREE },
 }: ImportPlaylistModalProps) {
-  const { data: session } = useSession()
-  const user = session?.user
+  
+  const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [playlistUrl, setPlaylistUrl] = useState("")
   const [isImporting, setIsImporting] = useState(false)

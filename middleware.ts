@@ -1,12 +1,13 @@
-// Auth middleware placeholder — no-op until Auth.js v5 is fully wired up.
-// When the real auth config is ready, replace with:
-//   export { auth as middleware } from "@/lib/auth"
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 
-export function middleware(_request: NextRequest) {
-  return NextResponse.next()
-}
+const isPublicRoute = createRouteMatcher(["/", "/sign-in(.*)", "/sign-up(.*)"])
+
+export default clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) {
+    const { userId, redirectToSignIn } = await auth()
+    if (!userId) return redirectToSignIn()
+  }
+})
 
 export const config = {
   matcher: [
