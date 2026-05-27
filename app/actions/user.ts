@@ -1,17 +1,6 @@
-'use server'
+"use server"
 
-import { ensureUserExists } from '@/lib/ensure-user'
-
-/**
- * Server action to ensure the current user exists in the database.
- * Call this from client components when they first load.
- */
+// Placeholder — will be replaced in Step 4 with Auth.js session
 export async function ensureUserAction() {
-  try {
-    const userId = await ensureUserExists()
-    return { success: true, userId }
-  } catch (error) {
-    console.error('Error in ensureUserAction:', error)
-    return { success: false, error: 'Failed to initialize user' }
-  }
+  return { success: true, userId: null as string | null }
 }

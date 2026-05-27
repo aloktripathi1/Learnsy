@@ -1,130 +1,64 @@
-'use server'
+"use server"
 
-import { DatabaseService } from '@/lib/database'
-import { ensureUserExists } from '@/lib/ensure-user'
-import type { Course, Video, UserProgress } from '@/lib/db'
+// Placeholder — will be replaced in Step 6 with Drizzle-based actions
+import type { StreakActivity, VideoTimestamp } from "@/types"
 
-export async function getCoursesAction(): Promise<Course[]> {
-  const userId = await ensureUserExists()
-  
-  if (!userId) {
-    throw new Error('Unauthorized')
-  }
-  
-  return await DatabaseService.getCourses(userId)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getCoursesAction(): Promise<any[]> {
+  return []
 }
 
-export async function getVideosAction(courseId: string): Promise<Video[]> {
-  const userId = await ensureUserExists()
-  
-  if (!userId) {
-    throw new Error('Unauthorized')
-  }
-  
-  return await DatabaseService.getVideos(courseId)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getVideosAction(_courseId: string): Promise<any[]> {
+  return []
 }
 
-export async function getUserProgressAction(): Promise<UserProgress[]> {
-  const userId = await ensureUserExists()
-  
-  if (!userId) {
-    throw new Error('Unauthorized')
-  }
-  
-  return await DatabaseService.getUserProgress(userId)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getUserProgressAction(): Promise<any[]> {
+  return []
 }
 
-export async function deleteCourseAction(courseId: string): Promise<void> {
-  const userId = await ensureUserExists()
-  
-  if (!userId) {
-    throw new Error('Unauthorized')
-  }
-  
-  await DatabaseService.deleteCourseWithRelatedData(courseId, userId)
+export async function deleteCourseAction(_courseId: string): Promise<void> {
+  return
 }
 
-export async function getBookmarksAction() {
-  const userId = await ensureUserExists()
-  
-  if (!userId) {
-    throw new Error('Unauthorized')
-  }
-  
-  return await DatabaseService.getBookmarks(userId)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getBookmarksAction(): Promise<any[]> {
+  return []
 }
 
-export async function getNotesAction() {
-  const userId = await ensureUserExists()
-  
-  if (!userId) {
-    throw new Error('Unauthorized')
-  }
-  
-  return await DatabaseService.getNotes(userId)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getNotesAction(): Promise<any[]> {
+  return []
 }
 
-export async function getStreakActivityAction() {
-  const userId = await ensureUserExists()
-  
-  if (!userId) {
-    throw new Error('Unauthorized')
-  }
-  
-  return await DatabaseService.getStreakActivity(userId)
+export async function getStreakActivityAction(): Promise<StreakActivity[]> {
+  return []
 }
 
-export async function updateProgressAction(data: {
+export async function updateProgressAction(_data: {
   video_id: string
   completed?: boolean
   bookmarked?: boolean
   notes?: string
-}) {
-  const userId = await ensureUserExists()
-  
-  if (!userId) {
-    throw new Error('Unauthorized')
-  }
-  
-  // Only pass the allowed fields to prevent issues
-  const updateData: any = {
-    user_id: userId,
-    video_id: data.video_id,
-  }
-  
-  if (data.completed !== undefined) updateData.completed = data.completed
-  if (data.bookmarked !== undefined) updateData.bookmarked = data.bookmarked
-  if (data.notes !== undefined) updateData.notes = data.notes
-  
-  return await DatabaseService.updateProgress(updateData)
+}): Promise<void> {
+  return
 }
 
-export async function updateStreakActivityAction(date: string) {
-  const userId = await ensureUserExists()
-  
-  if (!userId) {
-    throw new Error('Unauthorized')
-  }
-  
-  return await DatabaseService.updateStreakActivity(userId, date)
+export async function updateStreakActivityAction(_date: string): Promise<void> {
+  return
 }
 
-export async function saveVideoTimestampAction(videoId: string, timestamp: number, duration: number) {
-  const userId = await ensureUserExists()
-  
-  if (!userId) {
-    throw new Error('Unauthorized')
-  }
-  
-  return await DatabaseService.saveVideoTimestamp(userId, videoId, timestamp, duration)
+export async function saveVideoTimestampAction(
+  _videoId: string,
+  _timestamp: number,
+  _duration: number,
+): Promise<void> {
+  return
 }
 
-export async function getVideoTimestampAction(videoId: string) {
-  const userId = await ensureUserExists()
-  
-  if (!userId) {
-    throw new Error('Unauthorized')
-  }
-  
-  return await DatabaseService.getVideoTimestamp(userId, videoId)
+export async function getVideoTimestampAction(
+  _videoId: string,
+): Promise<VideoTimestamp | null> {
+  return null
 }

@@ -1,8 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import { useAuth } from "@/lib/auth"
-import { DatabaseService } from "@/lib/database"
+import { saveVideoTimestampAction } from "@/app/actions/courses"
 
 interface YouTubePlayerProps {
   videoId: string
@@ -14,316 +13,155 @@ interface YouTubePlayerProps {
 
 declare global {
   interface Window {
-    YT: any
+    YT: {
+      Player: new (el: HTMLElement, opts: object) => YTPlayer
+      PlayerState: { PLAYING: number; PAUSED: number; ENDED: number; BUFFERING: number }
+    }
     onYouTubeIframeAPIReady: () => void
   }
 }
 
+interface YTPlayer {
+  getCurrentTime(): number
+  getDuration(): number
+  getPlayerState(): number
+  seekTo(seconds: number, allowSeekAhead: boolean): void
+  loadVideoById(videoId: string): void
+  destroy(): void
+}
+
 export function YouTubePlayer({ videoId, startTime = 0, onProgress, onEnd, className }: YouTubePlayerProps) {
-  const { user } = useAuth()
-  const playerRef = useRef<any>(null)
+  const playerRef = useRef<YTPlayer | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const currentVideoIdRef = useRef<string>(videoId)
   const [isReady, setIsReady] = useState(false)
-  const [hasCompleted, setHasCompleted] = useState(false)
-  const [hasResumed, setHasResumed] = useState(false)
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const timestampIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const lastSavedTime = useRef<number>(0)
-  const isInitializing = useRef<boolean>(false)
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const timestampIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const lastSavedTimeRef = useRef<number>(0)
+  const isInitializingRef = useRef<boolean>(false)
   const startTimeRef = useRef<number>(startTime)
 
   const saveTimestamp = useCallback(async () => {
-    if (!user || !playerRef.current || typeof playerRef.current.getCurrentTime !== "function") return
-
-    try {
-      const currentTime = playerRef.current.getCurrentTime()
-      const duration = playerRef.current.getDuration()
-
-      if (currentTime > 0 && duration > 0) {
-        // Only save if time has changed significantly (more than 5 seconds)
-        if (Math.abs(currentTime - lastSavedTime.current) >= 5) {
-          console.log(`Saving timestamp: ${Math.floor(currentTime)}s / ${Math.floor(duration)}s`)
-          await DatabaseService.updateVideoTimestamp(
-            user.id,
-            currentVideoIdRef.current,
-            Math.floor(currentTime),
-            Math.floor(duration),
-          )
-          lastSavedTime.current = currentTime
-        }
-      }
-    } catch (error) {
-      console.error("Error saving timestamp:", error)
-    }
-  }, [user])
-
-  const resumeFromTimestamp = useCallback(
-    async (videoId: string) => {
-      if (!user || !playerRef.current || typeof playerRef.current.seekTo !== "function") return
-
-      try {
-        // Use provided startTime first, otherwise load from database
-        let resumeTime = startTimeRef.current
-
-        if (resumeTime === 0) {
-          console.log("Attempting to resume from saved timestamp for video:", videoId)
-          const timestampData = await DatabaseService.getVideoTimestamp(user.id, videoId)
-
-          if (timestampData && timestampData.timestamp > 10) {
-            resumeTime = timestampData.timestamp
-          }
-        }
-
-        if (resumeTime > 10) {
-          // Only resume if more than 10 seconds in
-          console.log(`Resuming video from ${resumeTime} seconds`)
-
-          // Wait for player to be ready before seeking
-          const seekWhenReady = () => {
-            if (playerRef.current && typeof playerRef.current.getPlayerState === "function") {
-              const state = playerRef.current.getPlayerState()
-              // Wait for player to be ready (state 1 = playing, state 2 = paused, state 3 = buffering)
-              if (state >= 1) {
-                playerRef.current.seekTo(resumeTime, true)
-                lastSavedTime.current = resumeTime
-                console.log("Successfully resumed from timestamp")
-              } else {
-                // Retry after a short delay
-                setTimeout(seekWhenReady, 500)
-              }
-            }
-          }
-
-          seekWhenReady()
-        } else {
-          console.log("No saved timestamp found or timestamp too early, starting from beginning")
-        }
-      } catch (error) {
-        console.error("Error resuming from timestamp:", error)
-      }
-    },
-    [user],
-  )
-
-  const startProgressTracking = useCallback(() => {
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current)
-    }
-
-    progressIntervalRef.current = setInterval(() => {
-      if (playerRef.current && typeof playerRef.current.getCurrentTime === "function") {
-        try {
-          const currentTime = playerRef.current.getCurrentTime()
-          const duration = playerRef.current.getDuration()
-
-          if (duration > 0) {
-            // Call onProgress with time values
-            onProgress?.(currentTime, duration)
-          }
-        } catch (error) {
-          console.error("Error tracking progress:", error)
-        }
-      }
-    }, 1000) // Check every second
-  }, [onProgress, onEnd, hasCompleted])
-
-  const stopProgressTracking = useCallback(() => {
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current)
-      progressIntervalRef.current = null
+    const player = playerRef.current
+    if (!player) return
+    const currentTime = player.getCurrentTime()
+    const duration = player.getDuration()
+    if (currentTime > 0 && duration > 0 && Math.abs(currentTime - lastSavedTimeRef.current) >= 5) {
+      lastSavedTimeRef.current = currentTime
+      await saveVideoTimestampAction(currentVideoIdRef.current, Math.floor(currentTime), Math.floor(duration))
     }
   }, [])
 
-  const startTimestampTracking = useCallback(() => {
-    if (timestampIntervalRef.current) {
-      clearInterval(timestampIntervalRef.current)
-    }
+  const stopTracking = useCallback(() => {
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+    if (timestampIntervalRef.current) clearInterval(timestampIntervalRef.current)
+    progressIntervalRef.current = null
+    timestampIntervalRef.current = null
+  }, [])
 
-    timestampIntervalRef.current = setInterval(() => {
-      saveTimestamp()
-    }, 5000) // Save every 5 seconds
-  }, [saveTimestamp])
+  const startTracking = useCallback(() => {
+    stopTracking()
+    progressIntervalRef.current = setInterval(() => {
+      const player = playerRef.current
+      if (!player) return
+      const currentTime = player.getCurrentTime()
+      const duration = player.getDuration()
+      if (duration > 0) onProgress?.(currentTime, duration)
+    }, 1000)
+    timestampIntervalRef.current = setInterval(saveTimestamp, 5000)
+  }, [onProgress, saveTimestamp, stopTracking])
 
-  const stopTimestampTracking = useCallback(() => {
-    if (timestampIntervalRef.current) {
-      clearInterval(timestampIntervalRef.current)
-      timestampIntervalRef.current = null
+  const seekToResume = useCallback((seconds: number) => {
+    if (seconds <= 10) return
+    const attemptSeek = () => {
+      const player = playerRef.current
+      if (!player) return
+      if (player.getPlayerState() >= 1) {
+        player.seekTo(seconds, true)
+        lastSavedTimeRef.current = seconds
+      } else {
+        setTimeout(attemptSeek, 500)
+      }
     }
+    setTimeout(attemptSeek, 1000)
   }, [])
 
   const initializePlayer = useCallback(() => {
-    if (!containerRef.current || !window.YT || !window.YT.Player || isInitializing.current) return
+    if (!containerRef.current || !window.YT?.Player || isInitializingRef.current) return
+    isInitializingRef.current = true
 
-    console.log("Initializing YouTube player for video:", videoId)
-    isInitializing.current = true
-
-    try {
-      playerRef.current = new window.YT.Player(containerRef.current, {
-        videoId,
-        width: "100%",
-        height: "100%",
-        playerVars: {
-          rel: 0,
-          modestbranding: 1,
-          iv_load_policy: 3,
-          enablejsapi: 1,
-          origin: window.location.origin,
-          autoplay: 0,
-          start: 0,
+    playerRef.current = new window.YT.Player(containerRef.current, {
+      videoId,
+      width: "100%",
+      height: "100%",
+      playerVars: { rel: 0, modestbranding: 1, iv_load_policy: 3, enablejsapi: 1, origin: window.location.origin },
+      events: {
+        onReady: () => {
+          setIsReady(true)
+          isInitializingRef.current = false
+          currentVideoIdRef.current = videoId
+          seekToResume(startTimeRef.current)
         },
-        events: {
-          onReady: (event: any) => {
-            console.log("YouTube player ready")
-            setIsReady(true)
-            isInitializing.current = false
-            currentVideoIdRef.current = videoId
-
-            // Resume from timestamp after player is ready
-            setTimeout(() => {
-              resumeFromTimestamp(videoId)
-            }, 1000)
-          },
-          onStateChange: (event: any) => {
-            const state = event.data
-            console.log("Player state changed:", state)
-
-            // Start tracking when video is playing
-            if (state === window.YT.PlayerState.PLAYING) {
-              startProgressTracking()
-              startTimestampTracking()
-            } else {
-              stopProgressTracking()
-              stopTimestampTracking()
-            }
-
-            // Handle video ended
-            if (state === window.YT.PlayerState.ENDED && !hasCompleted) {
-              console.log("Video ended - marking as complete")
-              setHasCompleted(true)
-              onComplete?.()
+        onStateChange: (event: { data: number }) => {
+          if (event.data === window.YT.PlayerState.PLAYING) {
+            startTracking()
+          } else {
+            stopTracking()
+            if (event.data === window.YT.PlayerState.PAUSED) saveTimestamp()
+            if (event.data === window.YT.PlayerState.ENDED) {
               saveTimestamp()
-
-              // Dispatch progress update event
-              window.dispatchEvent(new CustomEvent("progressUpdated"))
+              onEnd?.()
             }
-
-            // Save timestamp when paused
-            if (state === window.YT.PlayerState.PAUSED) {
-              saveTimestamp()
-            }
-          },
-          onError: (event: any) => {
-            console.error("YouTube player error:", event.data)
-            isInitializing.current = false
-          },
+          }
         },
-      })
-    } catch (error) {
-      console.error("Error initializing player:", error)
-      isInitializing.current = false
-    }
-  }, [
-    videoId,
-    onEnd,
-    hasCompleted,
-    resumeFromTimestamp,
-    startProgressTracking,
-    stopProgressTracking,
-    startTimestampTracking,
-    stopTimestampTracking,
-    saveTimestamp,
-  ])
+        onError: () => { isInitializingRef.current = false },
+      },
+    })
+  }, [videoId, seekToResume, startTracking, stopTracking, saveTimestamp, onEnd])
 
-  // Update startTimeRef when startTime prop changes
-  useEffect(() => {
-    startTimeRef.current = startTime
-  }, [startTime])
+  useEffect(() => { startTimeRef.current = startTime }, [startTime])
 
-  // Load YouTube API only once
   useEffect(() => {
-    if (window.YT && window.YT.Player) {
-      if (!playerRef.current) {
-        initializePlayer()
-      }
+    if (window.YT?.Player) {
+      if (!playerRef.current) initializePlayer()
       return
     }
-
-    // Load YouTube API if not already loaded
     if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
-      console.log("Loading YouTube API...")
       const script = document.createElement("script")
       script.src = "https://www.youtube.com/iframe_api"
       script.async = true
       document.head.appendChild(script)
     }
-
-    // Set up the callback
     window.onYouTubeIframeAPIReady = () => {
-      console.log("YouTube API ready")
-      if (!playerRef.current) {
-        initializePlayer()
-      }
+      if (!playerRef.current) initializePlayer()
     }
   }, [initializePlayer])
 
-  // Handle video changes without re-initializing the player
   useEffect(() => {
     if (videoId !== currentVideoIdRef.current && playerRef.current && isReady) {
-      console.log("Changing video from", currentVideoIdRef.current, "to", videoId)
-
-      // Reset states for new video
-      setHasCompleted(false)
-      setHasResumed(false)
-      lastSavedTime.current = 0
-
-      // Stop current tracking
-      stopProgressTracking()
-      stopTimestampTracking()
-
-      // Save timestamp for current video before switching
-      if (currentVideoIdRef.current) {
-        saveTimestamp()
-      }
-
-      // Load new video
-      if (typeof playerRef.current.loadVideoById === "function") {
-        playerRef.current.loadVideoById(videoId)
-        currentVideoIdRef.current = videoId
-
-        // Resume from timestamp for new video after a short delay
-        setTimeout(() => {
-          resumeFromTimestamp(videoId)
-        }, 1500)
-      }
+      stopTracking()
+      saveTimestamp()
+      playerRef.current.loadVideoById(videoId)
+      currentVideoIdRef.current = videoId
+      lastSavedTimeRef.current = 0
+      seekToResume(startTimeRef.current)
     }
-  }, [videoId, isReady, stopProgressTracking, stopTimestampTracking, saveTimestamp, resumeFromTimestamp])
+  }, [videoId, isReady, stopTracking, saveTimestamp, seekToResume])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      console.log("Cleaning up YouTube player")
-      stopProgressTracking()
-      stopTimestampTracking()
-
-      // Save timestamp before unmounting
-      if (user && playerRef.current && currentVideoIdRef.current) {
-        saveTimestamp()
-      }
-
-      if (playerRef.current && typeof playerRef.current.destroy === "function") {
-        playerRef.current.destroy()
-        playerRef.current = null
-      }
+      stopTracking()
+      saveTimestamp()
+      playerRef.current?.destroy()
+      playerRef.current = null
     }
-  }, [stopProgressTracking, stopTimestampTracking, saveTimestamp, user])
+  }, [stopTracking, saveTimestamp])
 
   return (
-    <div className={`youtube-container enhanced-video-container ${className || ""}`}>
+    <div className={`relative w-full aspect-video bg-black ${className ?? ""}`}>
       <div ref={containerRef} className="w-full h-full" />
     </div>
   )
 }
 
-// Default export for compatibility
 export default YouTubePlayer

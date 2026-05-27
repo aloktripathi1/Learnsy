@@ -1,57 +1,32 @@
-"use client"
-
 import type React from "react"
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { redirect } from "next/navigation"
+import { auth } from "@/lib/auth"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
-import { KeyboardShortcuts } from "@/components/keyboard-shortcuts"
+import { TopNav } from "@/components/top-nav"
 import { MobileNav } from "@/components/mobile-nav"
-import { useAuth } from "@/lib/auth"
-import { ensureUserAction } from "@/app/actions/user"
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const [isLoading, setIsLoading] = useState(true)
-  const { user, loading } = useAuth()
-  const router = useRouter()
+  const session = await auth()
 
-  useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.push("/")
-      } else {
-        // Ensure user exists in database
-        ensureUserAction().then(() => {
-          setIsLoading(false)
-        })
-      }
-    }
-  }, [user, loading, router])
-
-  if (loading || isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-      </div>
-    )
-  }
-
-  if (!user) {
-    return null
+  // Redirect unauthenticated users to the landing page.
+  // Auth.js v5 is a stub in dev — once wired up this gate is enforced for real.
+  if (session !== null && !session?.user) {
+    redirect("/")
   }
 
   return (
     <SidebarProvider defaultOpen={false}>
       <AppSidebar />
-      <SidebarInset className="content-transition pb-16 md:pb-0">
+      <SidebarInset className="flex flex-col min-h-screen bg-black">
+        <TopNav />
         <main className="flex-1 overflow-auto">{children}</main>
         <MobileNav />
       </SidebarInset>
-      <KeyboardShortcuts />
     </SidebarProvider>
   )
 }

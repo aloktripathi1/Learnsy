@@ -2,13 +2,14 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { PlaylistUrlInput } from "@/components/playlist-url-input"
 import { Plus, AlertCircle, CheckCircle, X } from "lucide-react"
-import { useAuth } from "@/lib/auth"
-import type { Course } from "@/lib/db"
+import type { Course } from "@/types"
+import { MAX_PLAYLISTS_FREE } from "@/lib/config"
 
 interface ImportPlaylistModalProps {
   onSuccess?: (course?: Course) => void | Promise<void>
@@ -24,9 +25,10 @@ interface ImportPlaylistModalProps {
 export function ImportPlaylistModal({
   onSuccess,
   trigger,
-  playlistLimit = { canImport: true, currentCount: 0, maxCount: 4, remaining: 4 },
+  playlistLimit = { canImport: true, currentCount: 0, maxCount: MAX_PLAYLISTS_FREE, remaining: MAX_PLAYLISTS_FREE },
 }: ImportPlaylistModalProps) {
-  const { user } = useAuth()
+  const { data: session } = useSession()
+  const user = session?.user
   const [isOpen, setIsOpen] = useState(false)
   const [playlistUrl, setPlaylistUrl] = useState("")
   const [isImporting, setIsImporting] = useState(false)
@@ -229,52 +231,51 @@ export function ImportPlaylistModal({
             maxCount={playlistLimit.maxCount}
           />
 
-          {/* Show import progress */}
+          {/* Import progress */}
           {isImporting && (
-            <div className="space-y-2 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-blue-700 dark:text-blue-400 font-medium">{progressMessage}</span>
-                <span className="text-blue-600 dark:text-blue-500">{importProgress}%</span>
+            <div className="space-y-2 p-3 bg-indigo-500/5 rounded-lg border border-indigo-500/20">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-indigo-400 font-medium">{progressMessage}</span>
+                <span className="text-indigo-500">{importProgress}%</span>
               </div>
-              <div className="w-full bg-blue-100 dark:bg-blue-900/40 rounded-full h-2.5">
-                <div 
-                  className="bg-blue-600 dark:bg-blue-500 h-2.5 rounded-full transition-all duration-300 ease-out"
+              <div className="w-full bg-[#1a1a1a] rounded-full h-1.5">
+                <div
+                  className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300 ease-out"
                   style={{ width: `${importProgress}%` }}
-                ></div>
+                />
               </div>
             </div>
           )}
 
-          {/* Show import success */}
+          {/* Success */}
           {importSuccess && (
-            <Alert className="enhanced-card border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-sm text-green-700 dark:text-green-400 enhanced-text">
-                {importSuccess}
-              </AlertDescription>
-            </Alert>
+            <div className="flex items-start gap-2 p-3 bg-emerald-500/5 rounded-lg border border-emerald-500/20">
+              <CheckCircle className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-emerald-400">{importSuccess}</p>
+            </div>
           )}
 
-          {/* Show import error */}
+          {/* Error */}
           {importError && (
-            <Alert variant="destructive" className="enhanced-card">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle className="text-sm enhanced-heading">Import Failed</AlertTitle>
-              <AlertDescription className="text-sm enhanced-text">{importError}</AlertDescription>
-            </Alert>
+            <div className="flex items-start gap-2 p-3 bg-red-950/30 rounded-lg border border-red-900/40">
+              <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-red-400">Import Failed</p>
+                <p className="text-xs text-red-400/80 mt-0.5">{importError}</p>
+              </div>
+            </div>
           )}
 
           {/* Instructions */}
-          <div className="text-xs text-muted-foreground space-y-2 p-4 bg-muted/30 rounded-lg">
-            <p className="font-medium">How to import a playlist:</p>
+          <div className="text-xs text-[#52525b] space-y-2 p-3 bg-[#0a0a0a] rounded-lg border border-[#1a1a1a]">
+            <p className="font-medium text-[#a1a1aa]">How to import a playlist:</p>
             <ol className="list-decimal list-inside space-y-1 ml-2">
-              <li>Go to YouTube and find the playlist you want to import</li>
-              <li>Copy the playlist URL from your browser's address bar</li>
-              <li>Paste the URL in the field above</li>
-              <li>Click "Import Playlist" to add it to your courses</li>
+              <li>Go to YouTube and find the playlist you want to study</li>
+              <li>Copy the playlist URL from your browser&rsquo;s address bar</li>
+              <li>Paste the URL in the field above and click Import</li>
             </ol>
-            <p className="text-xs text-muted-foreground mt-2">
-              Note: The playlist must be public or unlisted. Private playlists cannot be imported.
+            <p className="mt-1 text-[#52525b]">
+              Playlist must be public or unlisted.
             </p>
           </div>
         </div>

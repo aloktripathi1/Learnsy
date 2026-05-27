@@ -2,414 +2,314 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Play,
   BookOpen,
   Target,
   Zap,
-  AlertCircle,
   ArrowRight,
   CheckCircle,
-  Users,
-  Clock,
-  TrendingUp,
   Github,
   Menu,
   X,
   Sparkles,
-  Award,
-  BarChart3,
 } from "lucide-react"
-import { useAuth } from "@/lib/auth"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useRouter } from "next/navigation"
-import { Badge } from "@/components/ui/badge"
+import { signIn } from "next-auth/react"
+
+const features = [
+  {
+    icon: BookOpen,
+    title: "Structured Learning",
+    description:
+      "Transform YouTube playlists into organised courses with clear progress tracking and navigation.",
+  },
+  {
+    icon: Target,
+    title: "Progress Tracking",
+    description:
+      "Monitor your learning with completion stats, streak calendars, and detailed analytics.",
+  },
+  {
+    icon: Zap,
+    title: "Distraction-Free",
+    description:
+      "Clean interface designed for deep focus, with note-taking, bookmarks, and keyboard shortcuts.",
+  },
+]
+
+const benefits = [
+  { title: "Progress Tracking",    desc: "Visual progress indicators and completion statistics" },
+  { title: "Smart Notes",          desc: "Take notes linked to specific videos and topics" },
+  { title: "Bookmarks",            desc: "Save important moments for quick reference" },
+  { title: "Keyboard Shortcuts",   desc: "Navigate efficiently with keyboard controls" },
+]
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { user } = useAuth()
-  const router = useRouter()
-
-  const handleSignIn = () => {
-    router.push("/sign-in")
-  }
-
-  const features = [
-    {
-      icon: BookOpen,
-      title: "Structured Learning",
-      description: "Transform YouTube playlists into organized courses with clear progress tracking and navigation.",
-      gradient: "from-blue-500/10 to-cyan-500/10",
-      iconColor: "text-blue-500",
-    },
-    {
-      icon: Target,
-      title: "Progress Tracking",
-      description: "Monitor your learning journey with completion stats, streak calendars, and detailed analytics.",
-      gradient: "from-purple-500/10 to-pink-500/10",
-      iconColor: "text-purple-500",
-    },
-    {
-      icon: Zap,
-      title: "Distraction-Free",
-      description: "Clean interface designed for focus, with note-taking, bookmarks, and keyboard shortcuts.",
-      gradient: "from-amber-500/10 to-orange-500/10",
-      iconColor: "text-amber-500",
-    },
-  ]
-
-  const stats = [
-    { icon: Users, label: "Active Learners", value: "100+" },
-    { icon: Clock, label: "Hours Learned", value: "250+" },
-    { icon: TrendingUp, label: "Completion Rate", value: "85%" },
-  ]
+  const handleSignIn = () => signIn("google", { callbackUrl: "/dashboard" })
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob"></div>
-        <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-4000"></div>
-      </div>
+    <div className="min-h-screen bg-black text-white">
 
-      {/* Navigation */}
-      <nav className="border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 shadow-sm">
-        <div className="container">
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-2">
-              <div className="bg-gradient-to-br from-primary to-primary/70 p-2 rounded-xl shadow-lg">
-                <Play className="h-6 w-6 text-white" fill="white" />
+      {/* ── Nav ──────────────────────────────────────────────────── */}
+      <nav className="sticky top-0 z-50 border-b border-[#1a1a1a] bg-black/95 backdrop-blur-md">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-14">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500">
+                <Zap className="h-4 w-4 text-white" fill="white" />
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-                Learn<span className="text-primary">sy</span>
-              </span>
+              <span className="text-base font-bold tracking-tight">Learnsy</span>
             </div>
 
-            {/* Desktop Sign In */}
             <div className="hidden sm:block">
-              <Button onClick={handleSignIn} size="lg" className="gap-2 touch-target shadow-lg hover:shadow-xl transition-all">
-                Sign In
-                <ArrowRight className="w-4 h-4" />
+              <Button
+                onClick={handleSignIn}
+                className="h-9 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium"
+              >
+                Sign in with Google
+                <ArrowRight className="ml-2 h-3.5 w-3.5" />
               </Button>
             </div>
 
-            {/* Mobile Menu Button */}
-            <div className="sm:hidden">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="touch-target"
-              >
-                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
-            </div>
+            <button
+              className="sm:hidden p-2 text-[#a1a1aa] hover:text-white"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
 
-          {/* Mobile Menu */}
           {mobileMenuOpen && (
-            <div className="sm:hidden mt-4 pb-4 border-t pt-4">
-              <Button onClick={handleSignIn} className="w-full gap-2 touch-target">
-                Sign In
-                <ArrowRight className="w-4 h-4" />
+            <div className="sm:hidden pb-4 border-t border-[#1a1a1a] pt-4">
+              <Button
+                onClick={handleSignIn}
+                className="w-full h-10 bg-indigo-500 hover:bg-indigo-600 text-white text-sm"
+              >
+                Sign in with Google
+                <ArrowRight className="ml-2 h-3.5 w-3.5" />
               </Button>
             </div>
           )}
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="py-16 sm:py-24 text-center relative">
-        <div className="container">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6 animate-fade-in">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium text-primary">Transform Your Learning Journey</span>
-            </div>
-
-            <h1
-              className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight mb-6 animate-fade-in-up"
-              style={{ fontFamily: "Space Grotesk, system-ui, sans-serif" }}
-            >
-              Learn Smarter with
-              <span className="text-primary block mt-2 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                YouTube Playlists
-              </span>
-            </h1>
-            <p
-              className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-8 sm:mb-10 max-w-5xl mx-auto leading-relaxed animate-fade-in-up animation-delay-200"
-              style={{ fontFamily: "Space Grotesk, system-ui, sans-serif" }}
-            >
-              Transform any YouTube playlist into a structured learning experience. Track progress, take notes, and stay
-              focused without distractions.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in-up animation-delay-400">
-              <Button onClick={handleSignIn} size="lg" className="gap-2 touch-target text-base px-8 py-6 shadow-lg hover:shadow-xl transition-all">
-                Get Started Free
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-            </div>
-
-            {/* Hero Image/Mockup */}
-            <div className="mt-16 relative animate-fade-in-up animation-delay-600">
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10"></div>
-              <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-transparent rounded-2xl p-1 shadow-2xl">
-                <div className="bg-background/95 backdrop-blur rounded-xl p-6 sm:p-8 border border-primary/20">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="flex gap-1.5">
-                      <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                      <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                      <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                    </div>
-                    <div className="flex-1 bg-muted rounded-md h-6"></div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="col-span-2 space-y-3">
-                      <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-lg h-32 sm:h-48 flex items-center justify-center">
-                        <Play className="h-12 w-12 sm:h-16 sm:w-16 text-primary" />
-                      </div>
-                      <div className="bg-muted rounded h-3"></div>
-                      <div className="bg-muted rounded h-3 w-3/4"></div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="bg-muted rounded h-8"></div>
-                      <div className="bg-muted rounded h-8"></div>
-                      <div className="bg-muted rounded h-8"></div>
-                      <div className="bg-muted rounded h-8"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* ── Hero ─────────────────────────────────────────────────── */}
+      <section className="py-20 sm:py-28 text-center">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-6">
+            <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+            <span className="text-xs font-medium text-indigo-400">
+              Transform Your Learning Journey
+            </span>
           </div>
-        </section>
 
-        {/* Stats Section */}
-        <section className="py-12 sm:py-16 border-y bg-gradient-to-br from-muted/30 via-muted/20 to-transparent backdrop-blur">
-          <div className="container">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-12">
-              {stats.map((stat, index) => (
-                <div key={index} className="text-center group">
-                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4 group-hover:scale-110 transition-transform">
-                    <stat.icon className="h-7 w-7 text-primary" />
-                  </div>
-                  <div className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-                    {stat.value}
-                  </div>
-                  <div className="text-muted-foreground font-medium">{stat.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
+            Learn smarter with
+            <span className="block mt-1 text-indigo-400">YouTube Playlists</span>
+          </h1>
 
-        {/* Features Section */}
-        <section className="py-16 sm:py-24">
-          <div className="container">
-            <div className="text-center mb-12 sm:mb-16">
-              <Badge variant="outline" className="mb-4">Features</Badge>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
-                Everything you need to learn effectively
-              </h2>
-              <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto">
-                Powerful features designed to enhance your learning experience and help you achieve your goals.
-              </p>
-            </div>
+          <p className="text-lg text-[#a1a1aa] mb-10 max-w-2xl mx-auto leading-relaxed">
+            Transform any YouTube playlist into a structured learning experience.
+            Track progress, take notes, and stay focused without distractions.
+          </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 mb-16 sm:mb-20">
-              {features.map((feature, index) => (
-                <Card 
-                  key={index} 
-                  className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 group overflow-hidden relative hover:-translate-y-1"
-                >
-                  <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
-                  <CardHeader className="text-center relative z-10">
-                    <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br ${feature.gradient} mx-auto mb-4 group-hover:scale-110 transition-transform`}>
-                      <feature.icon className={`h-8 w-8 ${feature.iconColor}`} />
-                    </div>
-                    <CardTitle className="text-xl">{feature.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="relative z-10">
-                    <CardDescription className="text-center leading-relaxed">
-                      {feature.description}
-                    </CardDescription>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+          <Button
+            onClick={handleSignIn}
+            size="lg"
+            className="h-12 px-8 bg-indigo-500 hover:bg-indigo-600 text-white text-base font-medium shadow-lg shadow-indigo-500/20"
+          >
+            Get Started Free
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
 
-            {/* Built for serious learners */}
-            <div className="grid md:grid-cols-2 gap-8 sm:gap-12 items-center bg-gradient-to-br from-muted/50 via-muted/30 to-transparent rounded-3xl p-8 sm:p-12 border shadow-lg">
-              <div className="space-y-6 sm:space-y-8">
-                <div>
-                  <Badge variant="outline" className="mb-4">Why Choose Learnsy</Badge>
-                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4">
-                    Built for serious learners
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Take control of your learning journey with professional-grade tools
-                  </p>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-4 p-4 rounded-xl bg-background/50 backdrop-blur border hover:border-primary/50 transition-colors">
-                    <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    </div>
-                    <div>
-                      <div className="font-semibold mb-1">Progress Tracking</div>
-                      <div className="text-sm text-muted-foreground">
-                        Visual progress indicators and completion statistics
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4 p-4 rounded-xl bg-background/50 backdrop-blur border hover:border-primary/50 transition-colors">
-                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                      <CheckCircle className="h-5 w-5 text-blue-500" />
-                    </div>
-                    <div>
-                      <div className="font-semibold mb-1">Smart Notes</div>
-                      <div className="text-sm text-muted-foreground">
-                        Take notes linked to specific videos and topics
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4 p-4 rounded-xl bg-background/50 backdrop-blur border hover:border-primary/50 transition-colors">
-                    <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                      <CheckCircle className="h-5 w-5 text-purple-500" />
-                    </div>
-                    <div>
-                      <div className="font-semibold mb-1">Bookmarks</div>
-                      <div className="text-sm text-muted-foreground">
-                        Save important moments for quick reference
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4 p-4 rounded-xl bg-background/50 backdrop-blur border hover:border-primary/50 transition-colors">
-                    <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                      <CheckCircle className="h-5 w-5 text-amber-500" />
-                    </div>
-                    <div>
-                      <div className="font-semibold mb-1">Keyboard Shortcuts</div>
-                      <div className="text-sm text-muted-foreground">
-                        Navigate efficiently with keyboard controls
-                      </div>
-                    </div>
-                  </div>
-                </div>
+          {/* App mockup */}
+          <div className="mt-16 relative max-w-3xl mx-auto">
+            <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl overflow-hidden shadow-2xl shadow-black/50">
+              {/* Window chrome */}
+              <div className="flex items-center gap-1.5 px-4 py-3 border-b border-[#1a1a1a]">
+                <div className="w-3 h-3 rounded-full bg-[#1a1a1a]" />
+                <div className="w-3 h-3 rounded-full bg-[#1a1a1a]" />
+                <div className="w-3 h-3 rounded-full bg-[#1a1a1a]" />
+                <div className="flex-1 bg-[#1a1a1a] rounded h-5 ml-4" />
               </div>
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent rounded-2xl blur-3xl"></div>
-                <div className="relative bg-background/95 backdrop-blur rounded-2xl p-6 sm:p-8 shadow-xl border border-primary/20">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="text-sm font-semibold">Course Progress</div>
-                    <Badge variant="secondary" className="text-xs">75% Complete</Badge>
+              {/* Content */}
+              <div className="grid grid-cols-3 gap-0">
+                {/* Video area */}
+                <div className="col-span-2 p-4 space-y-3 border-r border-[#1a1a1a]">
+                  <div className="bg-black rounded-lg aspect-video flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                      <Play className="h-6 w-6 text-indigo-400 ml-1" fill="currentColor" />
+                    </div>
                   </div>
-                  <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 rounded-xl p-6 mb-4 flex items-center justify-center h-40 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent"></div>
-                    <Play className="h-16 w-16 text-primary relative z-10" />
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Videos Completed</span>
-                      <span className="font-semibold">12 of 16</span>
-                    </div>
-                    <div className="relative w-full bg-muted rounded-full h-3 overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/70 h-3 rounded-full w-3/4 shadow-lg"></div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 pt-2">
-                      <div className="text-center p-2 rounded-lg bg-muted/50">
-                        <div className="text-xs text-muted-foreground">Streak</div>
-                        <div className="text-sm font-bold">7 days</div>
-                      </div>
-                      <div className="text-center p-2 rounded-lg bg-muted/50">
-                        <div className="text-xs text-muted-foreground">Hours</div>
-                        <div className="text-sm font-bold">24.5</div>
-                      </div>
-                      <div className="text-center p-2 rounded-lg bg-muted/50">
-                        <div className="text-xs text-muted-foreground">Notes</div>
-                        <div className="text-sm font-bold">18</div>
-                      </div>
-                    </div>
+                  <div className="h-4 bg-[#1a1a1a] rounded w-3/4" />
+                  <div className="h-3 bg-[#1a1a1a] rounded w-1/2" />
+                  <div className="h-1 bg-[#1a1a1a] rounded-full overflow-hidden">
+                    <div className="h-full bg-indigo-500 w-3/4 rounded-full" />
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* CTA Section */}
-        <section className="py-16 sm:py-24">
-          <div className="container">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-primary/80 p-1 shadow-2xl">
-              <div className="relative bg-gradient-to-br from-primary/95 to-primary rounded-3xl py-16 sm:py-20 px-6 sm:px-12 text-center overflow-hidden">
-                {/* Decorative elements */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-                
-                <div className="max-w-4xl mx-auto relative z-10">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 backdrop-blur border border-white/30 mb-6">
-                    <Award className="h-4 w-4 text-white" />
-                    <span className="text-sm font-medium text-white">Join the Learning Revolution</span>
-                  </div>
-                  
-                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 text-white">
-                    Ready to transform your learning?
-                  </h2>
-                  <p className="text-lg sm:text-xl text-white/90 mb-8 sm:mb-10 max-w-3xl mx-auto">
-                    Join thousands of learners who have already improved their study habits with Learnsy.
-                  </p>
-                  
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                    <Button 
-                      onClick={handleSignIn} 
-                      size="lg" 
-                      variant="secondary"
-                      className="gap-2 touch-target text-base px-8 py-6 shadow-xl hover:shadow-2xl transition-all bg-white text-primary hover:bg-white/90"
+                {/* Playlist */}
+                <div className="p-3 space-y-2">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`flex gap-2 p-1.5 rounded ${i === 2 ? "bg-indigo-500/10 border border-indigo-500/20" : ""}`}
                     >
-                      Get Started Free
-                      <ArrowRight className="w-5 h-5" />
-                    </Button>
-                  </div>
+                      <div className="w-8 h-6 bg-[#1a1a1a] rounded shrink-0" />
+                      <div className="flex-1 space-y-1">
+                        <div className={`h-2 ${i === 2 ? "bg-indigo-400/30" : "bg-[#1a1a1a]"} rounded`} />
+                        <div className="h-2 bg-[#1a1a1a] rounded w-2/3" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Footer */}
-        <footer className="py-12 sm:py-16 text-center border-t mt-16 sm:mt-24 bg-muted/30">
-          <div className="container">
-            <div className="flex items-center justify-center gap-2 mb-6">
-              <div className="bg-gradient-to-br from-primary to-primary/70 p-2.5 rounded-xl shadow-lg">
-                <Play className="h-5 w-5 text-white" fill="white" />
-              </div>
-              <span className="text-xl font-bold">
-                Learn<span className="text-primary">sy</span>
-              </span>
-            </div>
-            
-            <p className="text-muted-foreground mb-6 text-base">
-              © 2025 Learnsy. Built for focused learning.
+      {/* ── Features ─────────────────────────────────────────────── */}
+      <section className="py-16 sm:py-20 border-t border-[#1a1a1a]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-3">
+              Everything you need to learn effectively
+            </h2>
+            <p className="text-[#a1a1aa] text-base max-w-xl mx-auto">
+              Professional-grade tools for serious learners.
             </p>
-            
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground pb-4">
-              <span>Made with</span>
-              <span className="text-red-500 text-lg animate-pulse">❤️</span>
-              <span>by</span>
-              <a
-                href="https://github.com/aloktripathi1"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors touch-target font-medium"
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {features.map((f, i) => (
+              <div
+                key={i}
+                className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl p-6 hover:border-[#2a2a2a] transition-colors duration-150"
               >
-                <Github className="h-4 w-4" />
-                Alok Tripathi
-              </a>
+                <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center mb-4">
+                  <f.icon className="h-5 w-5 text-indigo-400" />
+                </div>
+                <h3 className="font-semibold text-white mb-2">{f.title}</h3>
+                <p className="text-sm text-[#a1a1aa] leading-relaxed">{f.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Benefits ─────────────────────────────────────────────── */}
+      <section className="py-16 sm:py-20 border-t border-[#1a1a1a]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6">
+              <div>
+                <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-3">
+                  Why Choose Learnsy
+                </p>
+                <h3 className="text-2xl sm:text-3xl font-bold mb-3">
+                  Built for serious learners
+                </h3>
+                <p className="text-[#a1a1aa] text-sm leading-relaxed">
+                  Take control of your learning journey with professional-grade tools.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {benefits.map((b) => (
+                  <div
+                    key={b.title}
+                    className="flex items-start gap-3 p-3 rounded-xl bg-[#0a0a0a] border border-[#1a1a1a] hover:border-[#2a2a2a] transition-colors duration-150"
+                  >
+                    <CheckCircle className="h-4 w-4 text-indigo-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-white">{b.title}</p>
+                      <p className="text-xs text-[#52525b] mt-0.5">{b.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Mini dashboard preview */}
+            <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-white">Course Progress</span>
+                <span className="text-xs text-indigo-400 font-semibold bg-indigo-500/10 px-2 py-0.5 rounded-full">
+                  75% Complete
+                </span>
+              </div>
+              <div className="bg-black rounded-lg aspect-video flex items-center justify-center">
+                <Play className="h-10 w-10 text-indigo-400" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs text-[#a1a1aa]">
+                  <span>Videos Completed</span>
+                  <span className="font-semibold text-white">12 of 16</span>
+                </div>
+                <div className="h-1.5 bg-[#1a1a1a] rounded-full overflow-hidden">
+                  <div className="h-full bg-indigo-500 rounded-full w-3/4" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: "Streak", value: "7 days" },
+                  { label: "Notes",  value: "18" },
+                  { label: "Saved",  value: "5" },
+                ].map((s) => (
+                  <div key={s.label} className="text-center p-2 rounded-lg bg-black border border-[#1a1a1a]">
+                    <div className="text-[10px] text-[#52525b]">{s.label}</div>
+                    <div className="text-sm font-bold text-white">{s.value}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </footer>
+        </div>
+      </section>
+
+      {/* ── CTA ──────────────────────────────────────────────────── */}
+      <section className="py-16 sm:py-20 border-t border-[#1a1a1a]">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+            Ready to transform your learning?
+          </h2>
+          <p className="text-[#a1a1aa] text-base mb-8 leading-relaxed">
+            Join learners who have already improved their study habits with Learnsy.
+          </p>
+          <Button
+            onClick={handleSignIn}
+            size="lg"
+            className="h-12 px-8 bg-indigo-500 hover:bg-indigo-600 text-white text-base font-medium shadow-lg shadow-indigo-500/20"
+          >
+            Get Started Free
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </section>
+
+      {/* ── Footer ───────────────────────────────────────────────── */}
+      <footer className="py-10 border-t border-[#1a1a1a] text-center">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-center gap-2.5 mb-4">
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-500">
+              <Zap className="h-3.5 w-3.5 text-white" fill="white" />
+            </div>
+            <span className="text-sm font-bold">Learnsy</span>
+          </div>
+          <p className="text-xs text-[#52525b] mb-4">
+            © 2025 Learnsy. Built for focused learning.
+          </p>
+          <a
+            href="https://github.com/aloktripathi1"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-[#52525b] hover:text-[#a1a1aa] transition-colors"
+          >
+            <Github className="h-3.5 w-3.5" />
+            Made by Alok Tripathi
+          </a>
+        </div>
+      </footer>
     </div>
   )
 }

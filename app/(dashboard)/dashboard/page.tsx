@@ -1,18 +1,26 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useRouter } from "next/navigation"
+import {
+  BookOpen,
+  Bookmark,
+  Play,
+  TrendingUp,
+  Target,
+  Plus,
+  Trash2,
+  MoreHorizontal,
+  Flame,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { BookOpen, Bookmark, Calendar, Play, TrendingUp, Clock, Target, AlertCircle, Plus } from "lucide-react"
-import { StreakCalendar } from "@/components/streak-calendar"
-import { DailyReminder } from "@/components/daily-reminder"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/lib/auth"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { checkPlaylistLimit } from "@/app/actions/youtube"
-import { Trash2, MoreHorizontal } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,105 +31,159 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { StreakCalendar } from "@/components/streak-calendar"
+import { DailyReminder } from "@/components/daily-reminder"
 import { ImportPlaylistModal } from "@/components/import-playlist-modal"
+import { useSession } from "next-auth/react"
+import { checkPlaylistLimit } from "@/app/actions/youtube"
+import type { Course, StreakActivity } from "@/types"
+import { MAX_PLAYLISTS_FREE } from "@/lib/config"
+import { toast } from "sonner"
+
+interface PlaylistLimit {
+  canImport: boolean
+  currentCount: number
+  maxCount: number
+  remaining: number
+}
+
+interface Stats {
+  watchedVideos: number
+  activeStreak: number
+  totalCourses: number
+  bookmarkedVideos: number
+}
+
+function StatCard({
+  label,
+  value,
+  sub,
+  icon: Icon,
+}: {
+  label: string
+  value: number | string
+  sub: string
+  icon: React.ElementType
+}) {
+  return (
+    <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl p-4 hover:border-[#2a2a2a] transition-colors duration-150">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs text-[#a1a1aa] font-medium uppercase tracking-wider">
+          {label}
+        </span>
+        <Icon className="h-4 w-4 text-[#52525b]" />
+      </div>
+      <div className="text-2xl font-bold text-white mb-1">{value}</div>
+      <p className="text-xs text-[#52525b]">{sub}</p>
+    </div>
+  )
+}
+
+function StatCardSkeleton() {
+  return (
+    <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="skeleton h-3 w-16 rounded" />
+        <div className="skeleton h-4 w-4 rounded" />
+      </div>
+      <div className="skeleton h-7 w-12 rounded mb-1" />
+      <div className="skeleton h-3 w-20 rounded" />
+    </div>
+  )
+}
+
+function CourseRowSkeleton() {
+  return (
+    <div className="flex gap-3 p-3 rounded-lg bg-[#0a0a0a] border border-[#1a1a1a]">
+      <div className="skeleton w-16 h-12 rounded flex-shrink-0" />
+      <div className="flex-1 space-y-2">
+        <div className="skeleton h-4 w-3/4 rounded" />
+        <div className="skeleton h-1.5 w-full rounded" />
+        <div className="skeleton h-3 w-1/4 rounded" />
+      </div>
+    </div>
+  )
+}
 
 export default function DashboardPage() {
-  const { user } = useAuth()
-  const [courses, setCourses] = useState<any[]>([])
-  const [playlistLimit, setPlaylistLimit] = useState({
+  const { data: session } = useSession()
+  const user = session?.user
+  const router = useRouter()
+
+  const [courses, setCourses] = useState<Course[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [playlistLimit, setPlaylistLimit] = useState<PlaylistLimit>({
     canImport: true,
     currentCount: 0,
-    maxCount: 4,
-    remaining: 4,
+    maxCount: MAX_PLAYLISTS_FREE,
+    remaining: MAX_PLAYLISTS_FREE,
   })
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<Stats>({
     watchedVideos: 0,
     activeStreak: 0,
     totalCourses: 0,
     bookmarkedVideos: 0,
   })
   const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null)
-  const [courseToDelete, setCourseToDelete] = useState<any | null>(null)
-  const router = useRouter()
+  const [courseToDelete, setCourseToDelete] = useState<Course | null>(null)
 
-  useEffect(() => {
-    if (user) {
-      loadData()
-    }
-  }, [user?.id])
-
-  const calculateStreak = async () => {
-    if (!user) return 0
-
+  const calculateStreak = useCallback(async (): Promise<number> => {
     try {
       const { getStreakActivityAction } = await import("@/app/actions/courses")
-      const streakData = await getStreakActivityAction()
-
+      const streakData: StreakActivity[] = await getStreakActivityAction()
       if (streakData.length === 0) return 0
 
-      // Sort by date descending to start from most recent
-      const sortedData = streakData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-
+      const sorted = [...streakData].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      )
       const today = new Date().toISOString().split("T")[0]
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0]
+
+      const hasRecent = sorted.some(
+        (s) => s.date === today || s.date === yesterday,
+      )
+      if (!hasRecent) return 0
+
       let streak = 0
-      const currentDate = new Date()
-
-      // Check if user has activity today or yesterday to start counting
-      const hasRecentActivity = sortedData.some((s) => {
-        const activityDate = new Date(s.date).toISOString().split("T")[0]
-        const yesterday = new Date()
-        yesterday.setDate(yesterday.getDate() - 1)
-        const yesterdayStr = yesterday.toISOString().split("T")[0]
-
-        return activityDate === today || activityDate === yesterdayStr
-      })
-
-      if (!hasRecentActivity) return 0
-
-      // Count consecutive days backwards from today
+      const cur = new Date()
       for (let i = 0; i < 365; i++) {
-        // Max 365 days to prevent infinite loop
-        const dateString = currentDate.toISOString().split("T")[0]
-        const hasActivity = sortedData.some((s) => s.date === dateString)
-
-        if (hasActivity) {
+        const ds = cur.toISOString().split("T")[0]
+        const has = sorted.some((s) => s.date === ds)
+        if (has) {
           streak++
-          currentDate.setDate(currentDate.getDate() - 1)
+          cur.setDate(cur.getDate() - 1)
         } else {
-          // If it's today and no activity, don't break the streak yet
-          if (dateString === today) {
-            currentDate.setDate(currentDate.getDate() - 1)
-            continue
-          }
+          if (ds === today) { cur.setDate(cur.getDate() - 1); continue }
           break
         }
       }
-
       return streak
-    } catch (error) {
-      console.error("Error calculating streak:", error)
+    } catch {
       return 0
     }
-  }
+  }, [])
 
   const loadData = useCallback(async () => {
     if (!user) return
+    setError(null)
 
     try {
-      const { getCoursesAction, getBookmarksAction, getUserProgressAction } = await import("@/app/actions/courses")
+      const { getCoursesAction, getBookmarksAction, getUserProgressAction } =
+        await import("@/app/actions/courses")
+
       const [coursesData, bookmarks, progress, limitCheck] = await Promise.all([
         getCoursesAction(),
         getBookmarksAction(),
         getUserProgressAction(),
-        checkPlaylistLimit(user.id),
+        checkPlaylistLimit(user.id ?? undefined),
       ])
 
-      // Update courses state
-      setCourses(coursesData || [])
+      const safeCoursesData = coursesData ?? []
+      setCourses(safeCoursesData)
 
-      // Calculate playlist limit from actual data
-      const maxCount = limitCheck?.maxCount || 4
-      const currentCount = coursesData?.length || 0
+      const currentCount = safeCoursesData.length
+      const maxCount = limitCheck?.maxCount ?? MAX_PLAYLISTS_FREE
       const remaining = Math.max(0, maxCount - currentCount)
 
       setPlaylistLimit({
@@ -131,280 +193,271 @@ export default function DashboardPage() {
         remaining,
       })
 
-      // Calculate statistics with null safety
-      const watchedCount = progress?.filter((p) => p.completed === true).length || 0
+      const watchedCount = progress?.filter((p) => p.completed === true).length ?? 0
       const streakCount = await calculateStreak()
 
       setStats({
         watchedVideos: watchedCount,
         activeStreak: streakCount,
         totalCourses: currentCount,
-        bookmarkedVideos: bookmarks?.length || 0,
+        bookmarkedVideos: bookmarks?.length ?? 0,
       })
-
-      console.log("Dashboard stats calculated:", {
-        courses: currentCount,
-        watched: watchedCount,
-        bookmarks: bookmarks?.length || 0,
-        streak: streakCount,
-        limit: { current: currentCount, max: maxCount, remaining },
-      })
-    } catch (error) {
-      console.error("Error loading dashboard data:", error)
-      // Set safe defaults on error
-      setStats({
-        watchedVideos: 0,
-        activeStreak: 0,
-        totalCourses: 0,
-        bookmarkedVideos: 0,
-      })
+    } catch (err) {
+      setError("Couldn't load dashboard data.")
+      setStats({ watchedVideos: 0, activeStreak: 0, totalCourses: 0, bookmarkedVideos: 0 })
+    } finally {
+      setLoading(false)
     }
-  }, [user])
+  }, [user, calculateStreak])
 
   useEffect(() => {
-    const handleNotesUpdate = () => {
-      console.log("Notes updated, refreshing dashboard...")
-      loadData()
-    }
+    if (user) loadData()
+  }, [user?.id, loadData])
 
-    const handleBookmarksUpdate = () => {
-      console.log("Bookmarks updated, refreshing dashboard...")
-      loadData()
-    }
-
-    const handleProgressUpdate = () => {
-      console.log("Progress updated, refreshing dashboard...")
-      loadData()
-    }
-
-    const handleCoursesUpdate = () => {
-      console.log("Courses updated, refreshing dashboard...")
-      loadData()
-    }
-
-    window.addEventListener("notesUpdated", handleNotesUpdate)
-    window.addEventListener("bookmarksUpdated", handleBookmarksUpdate)
-    window.addEventListener("progressUpdated", handleProgressUpdate)
-    window.addEventListener("coursesUpdated", handleCoursesUpdate)
-
+  useEffect(() => {
+    const refresh = () => loadData()
+    window.addEventListener("notesUpdated",    refresh)
+    window.addEventListener("bookmarksUpdated", refresh)
+    window.addEventListener("progressUpdated",  refresh)
+    window.addEventListener("coursesUpdated",   refresh)
     return () => {
-      window.removeEventListener("notesUpdated", handleNotesUpdate)
-      window.removeEventListener("bookmarksUpdated", handleBookmarksUpdate)
-      window.removeEventListener("progressUpdated", handleProgressUpdate)
-      window.removeEventListener("coursesUpdated", handleCoursesUpdate)
+      window.removeEventListener("notesUpdated",    refresh)
+      window.removeEventListener("bookmarksUpdated", refresh)
+      window.removeEventListener("progressUpdated",  refresh)
+      window.removeEventListener("coursesUpdated",   refresh)
     }
   }, [loadData])
 
-  const resumeCourse = async (course: any) => {
-
+  const resumeCourse = async (course: Course) => {
     try {
       const { getVideosAction, getUserProgressAction } = await import("@/app/actions/courses")
-      const videos = await getVideosAction(course.id)
-      const progress = await getUserProgressAction()
-
+      const [videos, progress] = await Promise.all([
+        getVideosAction(course.id),
+        getUserProgressAction(),
+      ])
       const nextVideo = videos.find((v) => {
-        const videoProgress = progress.find((p) => p.video_id === v.video_id)
-        return !videoProgress?.completed
+        const vp = progress.find((p) => p.video_id === v.video_id)
+        return !vp?.completed
       })
-
-      if (nextVideo) {
-        router.push(`/study/${course.id}/${nextVideo.video_id}`)
-      } else if (videos.length > 0) {
-        // If all videos are completed, go to the first one
-        router.push(`/study/${course.id}/${videos[0].video_id}`)
-      }
-    } catch (error) {
-      console.error("Error resuming course:", error)
+      const target = nextVideo ?? videos[0]
+      if (target) router.push(`/study/${course.id}/${target.video_id}`)
+    } catch {
+      toast.error("Couldn't open course. Please try again.")
     }
   }
 
-  const deleteCourse = async (course: any) => {
+  const deleteCourse = async (course: Course) => {
     if (!user) return
-
     setDeletingCourseId(course.id)
-
     try {
       const { deleteCourseAction } = await import("@/app/actions/courses")
       await deleteCourseAction(course.id)
-
-      // Remove from local state
-      setCourses(courses.filter((c) => c.id !== course.id))
-
-      // Update stats and limit check
+      setCourses((prev) => prev.filter((c) => c.id !== course.id))
       await loadData()
-
       setCourseToDelete(null)
-    } catch (error) {
-      console.error("Error deleting course:", error)
-      alert("Failed to delete course. Please try again.")
+      toast.success("Course deleted")
+    } catch {
+      toast.error("Failed to delete course. Please try again.")
     } finally {
       setDeletingCourseId(null)
     }
   }
 
+  const firstName = user?.name?.split(" ")[0] ?? "Learner"
+
   return (
-    <div className="flex-1 space-y-4 p-3 md:p-8 pb-20 md:pb-8">
-      {/* Welcome Section - Enhanced */}
-      <div className="space-y-1">
-        <h1 className="text-xl md:text-3xl lg:text-4xl font-bold tracking-tight enhanced-heading">
-          Welcome back, {user?.user_metadata?.full_name?.split(" ")[0] || "Learner"}! 👋
+    <div className="flex-1 max-w-5xl mx-auto w-full space-y-6 p-4 md:p-8 pb-24 md:pb-8">
+
+      {/* Welcome */}
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
+          Welcome back, {firstName}
         </h1>
-        <p className="text-muted-foreground text-sm enhanced-text">Ready to continue your learning journey?</p>
+        <p className="text-[#a1a1aa] text-sm mt-1">
+          Ready to continue your learning journey?
+        </p>
       </div>
 
-      {/* Daily Reminder - New Component */}
+      {/* Daily reminder */}
       <DailyReminder courses={courses} stats={stats} />
 
-      {/* Stats Cards - Enhanced */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-        <Card className="enhanced-stats-card">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs md:text-sm font-medium text-muted-foreground">Videos</div>
-            <Play className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-          </div>
-          <div className="text-xl md:text-2xl font-bold enhanced-heading">{stats.watchedVideos}</div>
-          <p className="text-xs text-muted-foreground mt-1 enhanced-text">
-            <TrendingUp className="inline h-2 w-2 md:h-3 md:w-3 mr-1" />
-            Watched
-          </p>
-        </Card>
+      {/* Error state */}
+      {error && (
+        <div className="flex items-center justify-between p-4 rounded-xl bg-red-950/30 border border-red-900/40">
+          <span className="text-sm text-red-400">{error}</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={loadData}
+            className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-7 px-2 text-xs"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
 
-        <Card className="enhanced-stats-card">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs md:text-sm font-medium text-muted-foreground">Streak</div>
-            <Calendar className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-          </div>
-          <div className="text-xl md:text-2xl font-bold enhanced-heading">{stats.activeStreak}</div>
-          <p className="text-xs text-muted-foreground mt-1 enhanced-text">
-            <Target className="inline h-2 w-2 md:h-3 md:w-3 mr-1" />
-            {stats.activeStreak > 0 ? "days" : "Start today!"}
-          </p>
-        </Card>
-
-        <Card className="enhanced-stats-card">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs md:text-sm font-medium text-muted-foreground">Courses</div>
-            <BookOpen className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-          </div>
-          <div className="text-xl md:text-2xl font-bold enhanced-heading">{stats.totalCourses}</div>
-          <p className="text-xs text-muted-foreground mt-1 enhanced-text">
-            <Clock className="inline h-2 w-2 md:h-3 md:w-3 mr-1" />
-            {playlistLimit.remaining} remaining
-          </p>
-        </Card>
-
-        <Card className="enhanced-stats-card">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs md:text-sm font-medium text-muted-foreground">Saved</div>
-            <Bookmark className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-          </div>
-          <div className="text-xl md:text-2xl font-bold enhanced-heading">{stats.bookmarkedVideos}</div>
-          <p className="text-xs text-muted-foreground mt-1 enhanced-text">
-            <Bookmark className="inline h-2 w-2 md:h-3 md:w-3 mr-1" />
-            Bookmarks
-          </p>
-        </Card>
+      {/* Stats row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+        ) : (
+          <>
+            <StatCard
+              label="Videos"
+              value={stats.watchedVideos}
+              sub="Watched"
+              icon={Play}
+            />
+            <StatCard
+              label="Streak"
+              value={stats.activeStreak}
+              sub={stats.activeStreak > 0 ? "days in a row" : "Start today!"}
+              icon={Flame}
+            />
+            <StatCard
+              label="Courses"
+              value={stats.totalCourses}
+              sub={`${playlistLimit.remaining} slot${playlistLimit.remaining !== 1 ? "s" : ""} remaining`}
+              icon={BookOpen}
+            />
+            <StatCard
+              label="Bookmarks"
+              value={stats.bookmarkedVideos}
+              sub="Saved videos"
+              icon={Bookmark}
+            />
+          </>
+        )}
       </div>
 
-      {/* Streak Calendar - Enhanced */}
-      <Card className="enhanced-card">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg md:text-xl enhanced-heading">Learning Activity</CardTitle>
-          <CardDescription className="text-sm enhanced-text">Your daily learning streak</CardDescription>
-        </CardHeader>
-        <CardContent className="px-3 md:px-6">
-          <StreakCalendar />
-        </CardContent>
-      </Card>
+      {/* Streak heatmap */}
+      <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl p-4 md:p-6">
+        <h2 className="text-sm font-semibold text-white mb-1">Learning Activity</h2>
+        <p className="text-xs text-[#52525b] mb-4">Your daily study streak this year</p>
+        <StreakCalendar />
+      </div>
 
-      {/* Import Playlist - Enhanced */}
-      <Card className="enhanced-card">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1">
-              <CardTitle className="text-lg md:text-xl enhanced-heading">Import Course</CardTitle>
-              <CardDescription className="text-sm mt-1 enhanced-text">
-                Add a YouTube playlist ({playlistLimit.currentCount}/{playlistLimit.maxCount} used)
-              </CardDescription>
-            </div>
+      {/* Import CTA */}
+      <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl p-4 md:p-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-sm font-semibold text-white">Import Course</h2>
+            <p className="text-xs text-[#52525b] mt-0.5">
+              Add a YouTube playlist ({playlistLimit.currentCount}/{playlistLimit.maxCount} used)
+            </p>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <ImportPlaylistModal
-            onSuccess={loadData}
-            playlistLimit={playlistLimit}
-            trigger={
-              <Button className="w-full h-12 enhanced-button" disabled={!playlistLimit.canImport}>
-                <Plus className="h-4 w-4 mr-2" />
-                {playlistLimit.canImport ? "Import Playlist" : "Limit Reached"}
-              </Button>
+        </div>
+
+        <ImportPlaylistModal
+          onSuccess={loadData}
+          playlistLimit={playlistLimit}
+          trigger={
+            <Button
+              className="w-full h-10 bg-indigo-500 hover:bg-indigo-600 text-white font-medium transition-colors duration-150"
+              disabled={!playlistLimit.canImport}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {playlistLimit.canImport ? "Import Playlist" : "Limit Reached"}
+            </Button>
+          }
+        />
+
+        {/* Limit indicator */}
+        <div className="mt-3 flex items-center justify-between text-xs">
+          <span className="text-[#52525b]">
+            {playlistLimit.currentCount} of {playlistLimit.maxCount} playlists used
+          </span>
+          <span
+            className={
+              playlistLimit.canImport ? "text-emerald-500" : "text-amber-500"
             }
+          >
+            {playlistLimit.remaining} remaining
+          </span>
+        </div>
+        <div className="mt-2 h-1 bg-[#1a1a1a] rounded-full overflow-hidden">
+          <div
+            className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+            style={{
+              width: `${(playlistLimit.currentCount / playlistLimit.maxCount) * 100}%`,
+            }}
           />
+        </div>
+      </div>
 
-          {/* Limit Status */}
-          <div className="flex items-center justify-between text-sm p-3 bg-muted/30 rounded-lg">
-            <span className="text-muted-foreground">
-              Playlists: {playlistLimit.currentCount}/{playlistLimit.maxCount}
-            </span>
-            <span className={`font-medium ${playlistLimit.canImport ? "text-green-600" : "text-orange-600"}`}>
-              {playlistLimit.remaining}
-            </span>
+      {/* Your courses */}
+      {(loading || courses.length > 0) && (
+        <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl p-4 md:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-white">Your Courses</h2>
+              <p className="text-xs text-[#52525b] mt-0.5">
+                Continue where you left off
+              </p>
+            </div>
+            {courses.length > 3 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/courses")}
+                className="text-xs text-[#a1a1aa] hover:text-white h-7 px-2"
+              >
+                View all
+              </Button>
+            )}
           </div>
 
-          {/* Instructions */}
-          <div className="text-xs text-muted-foreground space-y-2 p-3 bg-muted/20 rounded-lg">
-            <p className="font-medium">Quick Start:</p>
-            <ol className="list-decimal list-inside space-y-1 ml-2">
-              <li>Find a YouTube playlist you want to study</li>
-              <li>Copy the playlist URL</li>
-              <li>Click "Import Playlist" and paste the URL</li>
-              <li>Start learning with progress tracking!</li>
-            </ol>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Courses - Enhanced */}
-      {courses.length > 0 && (
-        <Card className="enhanced-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg md:text-xl enhanced-heading">Your Courses</CardTitle>
-            <CardDescription className="text-sm enhanced-text">Continue where you left off</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {courses.slice(0, 3).map((course) => (
-              <div key={course.id} className="flex gap-3 p-3 border rounded-lg bg-card enhanced-card">
-                <img
-                  src={course.thumbnail || "/placeholder.svg?height=48&width=80"}
-                  alt={course.title}
-                  className="w-16 h-12 md:w-20 md:h-14 object-cover rounded flex-shrink-0"
-                />
-                <div className="flex-1 min-w-0 space-y-2">
-                  <h3 className="font-medium text-sm md:text-base line-clamp-2 leading-tight enhanced-text">
-                    {course.title}
-                  </h3>
-                  <div className="space-y-1">
-                    <Progress value={0} className="h-1.5 md:h-2 enhanced-progress" />
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-muted-foreground enhanced-text">0% complete</span>
-                      <div className="flex items-center gap-2">
+          <div className="space-y-2">
+            {loading ? (
+              Array.from({ length: 2 }).map((_, i) => (
+                <CourseRowSkeleton key={i} />
+              ))
+            ) : (
+              courses.slice(0, 3).map((course) => (
+                <div
+                  key={course.id}
+                  className="flex gap-3 p-3 rounded-lg bg-black border border-[#1a1a1a] hover:border-[#2a2a2a] transition-colors duration-150"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={course.thumbnail ?? "/placeholder.svg?height=48&width=80"}
+                    alt={course.title}
+                    className="w-16 h-12 object-cover rounded flex-shrink-0"
+                    loading="lazy"
+                  />
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <h3 className="text-sm font-medium text-white line-clamp-1 leading-tight">
+                      {course.title}
+                    </h3>
+                    <Progress value={0} className="h-1" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-[#52525b]">0% complete</span>
+                      <div className="flex items-center gap-1">
                         <Button
                           onClick={() => resumeCourse(course)}
                           size="sm"
-                          className="h-8 px-3 text-xs enhanced-button"
+                          className="h-7 px-2.5 text-xs bg-indigo-500 hover:bg-indigo-600 text-white"
                         >
-                          Start
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          Continue
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-[#52525b] hover:text-white hover:bg-white/5"
+                            >
+                              <MoreHorizontal className="h-3.5 w-3.5" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent
+                            align="end"
+                            className="bg-[#0a0a0a] border-[#1a1a1a]"
+                          >
                             <DropdownMenuItem
                               onClick={() => setCourseToDelete(course)}
-                              className="text-red-600 focus:text-red-600"
+                              className="text-red-400 focus:text-red-300 focus:bg-red-950/30 cursor-pointer"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
                               Delete Course
@@ -415,34 +468,72 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+              ))
+            )}
+          </div>
+        </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!courseToDelete} onOpenChange={() => setCourseToDelete(null)}>
-        <AlertDialogContent>
+      {/* Empty state — no courses at all */}
+      {!loading && courses.length === 0 && !error && (
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+          <svg
+            className="w-12 h-12 text-[#2a2a2a] mb-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+            />
+          </svg>
+          <p className="text-[#52525b] text-sm mb-4">
+            No courses yet. Import your first YouTube playlist to get started.
+          </p>
+          <ImportPlaylistModal
+            onSuccess={loadData}
+            playlistLimit={playlistLimit}
+            trigger={
+              <Button className="h-9 bg-indigo-500 hover:bg-indigo-600 text-white text-sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Import Playlist
+              </Button>
+            }
+          />
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      <AlertDialog
+        open={!!courseToDelete}
+        onOpenChange={() => setCourseToDelete(null)}
+      >
+        <AlertDialogContent className="bg-[#0a0a0a] border-[#1a1a1a]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Course</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{courseToDelete?.title}"? This will permanently remove the course and all
-              your progress, bookmarks, and notes for this course.
+            <AlertDialogTitle className="text-white">Delete Course</AlertDialogTitle>
+            <AlertDialogDescription className="text-[#a1a1aa]">
+              Are you sure you want to delete &ldquo;{courseToDelete?.title}&rdquo;?
+              This will permanently remove the course and all your progress,
+              bookmarks, and notes.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="bg-transparent border-[#2a2a2a] text-[#a1a1aa] hover:text-white hover:bg-white/5">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => courseToDelete && deleteCourse(courseToDelete)}
               disabled={deletingCourseId === courseToDelete?.id}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
               {deletingCourseId === courseToDelete?.id ? (
-                <div className="flex items-center gap-2">
-                  <div className="loading-spinner" />
-                  Deleting...
-                </div>
+                <span className="flex items-center gap-2">
+                  <span className="loading-spinner h-3.5 w-3.5" />
+                  Deleting…
+                </span>
               ) : (
                 "Delete Course"
               )}

@@ -1,84 +1,75 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
-import { Calendar, Clock, Play, X, Zap, Target } from "lucide-react"
-import { useAuth } from "@/lib/auth"
+import { toast } from "sonner"
+import { Play, X, Zap, Target, Clock, Calendar } from "lucide-react"
+import { useSession } from "next-auth/react"
 import { getStreakActivityAction, getVideosAction, getUserProgressAction } from "@/app/actions/courses"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import type { Course } from "@/types"
 
 interface DailyReminderProps {
-  courses: any[]
+  courses: Course[]
   stats: {
     activeStreak: number
     watchedVideos: number
   }
 }
 
+type ReminderType = "continue" | "streak" | "inactive" | "welcome" | null
+
+interface ReminderMessage {
+  type: ReminderType
+  title: string
+  description: string
+  action?: string
+  actionFn?: () => void
+}
+
 export function DailyReminder({ courses, stats }: DailyReminderProps) {
-  const { user } = useAuth()
-  const { toast } = useToast()
+  const { data: session } = useSession()
+  const user = session?.user
   const router = useRouter()
-  const [lastActivity, setLastActivity] = useState<Date | null>(null)
-  const [reminderMessage, setReminderMessage] = useState<{
-    type: "continue" | "streak" | "inactive" | "welcome" | null
-    title: string
-    description: string
-    action?: string
-    actionFn?: () => void
-  } | null>(null)
-  const [isDismissed, setIsDismissed] = useState(false)
-  const [showBanner, setShowBanner] = useState(false)
+
+  const [lastActivity, setLastActivity]         = useState<Date | null | undefined>(undefined)
+  const [reminderMessage, setReminderMessage]   = useState<ReminderMessage | null>(null)
+  const [isDismissed, setIsDismissed]           = useState(false)
+  const [showBanner, setShowBanner]             = useState(false)
 
   useEffect(() => {
-    if (user) {
-      loadLastActivity()
-    }
+    if (!user) return
+    getStreakActivityAction()
+      .then((data) => {
+        if (data.length === 0) {
+          setLastActivity(null)
+        } else {
+          const sorted = [...data].sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+          )
+          setLastActivity(new Date(sorted[0].date))
+        }
+      })
+      .catch(() => setLastActivity(null))
   }, [user])
 
   useEffect(() => {
-    if (lastActivity !== null) {
-      generateReminderMessage()
-    }
+    if (lastActivity === undefined) return
+    generateReminderMessage()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastActivity, courses, stats])
 
-  const loadLastActivity = async () => {
-    if (!user) return
-
-    try {
-      // Get the most recent activity from streak data
-      const streakData = await getStreakActivityAction()
-
-      if (streakData.length > 0) {
-        // Sort by date descending to get the most recent
-        const sortedData = streakData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        const mostRecent = sortedData[0]
-        setLastActivity(new Date(mostRecent.date))
-      } else {
-        // No activity yet, set to null to show welcome message
-        setLastActivity(null)
-      }
-    } catch (error) {
-      console.error("Error loading last activity:", error)
-      setLastActivity(null)
-    }
-  }
-
   const generateReminderMessage = () => {
-    const now = new Date()
+    const now   = new Date()
     const today = now.toISOString().split("T")[0]
 
-    // Check if reminder was already dismissed today
     const dismissedToday = localStorage.getItem(`reminder-dismissed-${today}`)
     if (dismissedToday) {
       setIsDismissed(true)
       return
     }
 
-    // No activity yet - welcome message
     if (!lastActivity) {
       setReminderMessage({
         type: "welcome",
@@ -89,67 +80,55 @@ export function DailyReminder({ courses, stats }: DailyReminderProps) {
             : "Import your first YouTube playlist to begin your learning adventure.",
         action: courses.length > 0 ? "Start Learning" : "Import Playlist",
         actionFn: () => {
-          if (courses.length > 0) {
-            resumeFirstCourse()
-          } else {
-            // Could trigger import modal or navigate to courses
-            router.push("/courses")
-          }
+          if (courses.length > 0) resumeFirstCourse()
+          else router.push("/courses")
         },
       })
       setShowBanner(true)
       return
     }
 
-    const daysSinceActivity = Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24))
+    const daysSince        = Math.floor((now.getTime() - lastActivity.getTime()) / 86400000)
     const lastActivityDate = lastActivity.toISOString().split("T")[0]
 
-    // Active today - no reminder needed
-    if (lastActivityDate === today) {
-      return
-    }
+    if (lastActivityDate === today) return
 
-    // Yesterday - gentle nudge
-    if (daysSinceActivity === 1) {
-      if (stats.activeStreak > 0) {
-        setReminderMessage({
-          type: "streak",
-          title: `🔥 Keep your ${stats.activeStreak}-day streak alive!`,
-          description: "You watched videos yesterday. Continue your momentum today to maintain your learning streak.",
-          action: "Continue Learning",
-          actionFn: resumeFirstCourse,
-        })
-      } else {
-        setReminderMessage({
-          type: "continue",
-          title: "📚 Continue where you left off",
-          description: "You made progress yesterday. Pick up where you left off and keep the momentum going.",
-          action: "Resume",
-          actionFn: resumeFirstCourse,
-        })
-      }
+    if (daysSince === 1) {
+      setReminderMessage(
+        stats.activeStreak > 0
+          ? {
+              type: "streak",
+              title: `🔥 Keep your ${stats.activeStreak}-day streak alive!`,
+              description: "You watched videos yesterday. Continue today to maintain your streak.",
+              action: "Continue Learning",
+              actionFn: resumeFirstCourse,
+            }
+          : {
+              type: "continue",
+              title: "📚 Continue where you left off",
+              description: "You made progress yesterday. Keep the momentum going.",
+              action: "Resume",
+              actionFn: resumeFirstCourse,
+            },
+      )
       setShowBanner(true)
-    }
-    // 2-3 days - stronger nudge
-    else if (daysSinceActivity >= 2 && daysSinceActivity <= 3) {
+    } else if (daysSince >= 2 && daysSince <= 3) {
       setReminderMessage({
         type: "inactive",
-        title: `⏰ You've been away for ${daysSinceActivity} days`,
+        title: `⏰ You've been away for ${daysSince} days`,
         description:
           stats.activeStreak > 0
-            ? `Your ${stats.activeStreak}-day streak is at risk. A quick 5-minute session can get you back on track.`
-            : "Your learning journey is waiting. Even a short session can make a difference.",
+            ? `Your ${stats.activeStreak}-day streak is at risk. A quick session can get you back on track.`
+            : "Your learning journey is waiting. Even a short session makes a difference.",
         action: "Get Back on Track",
         actionFn: resumeFirstCourse,
       })
       setShowBanner(true)
-    }
-    // 4+ days - motivational message
-    else if (daysSinceActivity >= 4) {
+    } else if (daysSince >= 4) {
       setReminderMessage({
         type: "inactive",
         title: "🌟 Ready to restart your learning?",
-        description: `It's been ${daysSinceActivity} days since your last session. Your courses are waiting for you to continue the journey.`,
+        description: `It's been ${daysSince} days since your last session. Your courses are waiting.`,
         action: "Restart Learning",
         actionFn: resumeFirstCourse,
       })
@@ -158,131 +137,97 @@ export function DailyReminder({ courses, stats }: DailyReminderProps) {
   }
 
   const resumeFirstCourse = async () => {
-    if (courses.length === 0) {
-      router.push("/courses")
-      return
-    }
-
+    if (courses.length === 0) { router.push("/courses"); return }
     try {
-      const firstCourse = courses[0]
-      const videos = await getVideosAction(firstCourse.id)
-      const progress = await getUserProgressAction()
-
+      const first    = courses[0]
+      const [videos, progress] = await Promise.all([
+        getVideosAction(first.id),
+        getUserProgressAction(),
+      ])
       const nextVideo = videos.find((v) => {
-        const videoProgress = progress.find((p) => p.video_id === v.video_id)
-        return !videoProgress?.completed
+        const vp = progress.find((p) => p.video_id === v.video_id)
+        return !vp?.completed
       })
-
-      if (nextVideo) {
-        router.push(`/study/${firstCourse.id}/${nextVideo.video_id}`)
-      } else if (videos.length > 0) {
-        router.push(`/study/${firstCourse.id}/${videos[0].video_id}`)
-      }
-    } catch (error) {
-      console.error("Error resuming course:", error)
+      const target = nextVideo ?? videos[0]
+      if (target) router.push(`/study/${first.id}/${target.video_id}`)
+    } catch {
       router.push("/courses")
     }
   }
 
-  const dismissReminder = () => {
+  const dismiss = () => {
     const today = new Date().toISOString().split("T")[0]
     localStorage.setItem(`reminder-dismissed-${today}`, "true")
     setIsDismissed(true)
     setShowBanner(false)
-
-    // Show a subtle toast confirmation
-    toast({
-      title: "Reminder dismissed",
-      description: "We'll check in with you tomorrow. Happy learning! 📚",
-    })
+    toast.success("Reminder dismissed", { description: "We'll check in tomorrow." })
   }
 
-  const handleAction = () => {
-    if (reminderMessage?.actionFn) {
-      reminderMessage.actionFn()
-      dismissReminder()
-    }
-  }
-
-  // Don't show if dismissed or no message
-  if (isDismissed || !reminderMessage || !showBanner) {
-    return null
-  }
+  if (isDismissed || !reminderMessage || !showBanner) return null
 
   const getIcon = () => {
     switch (reminderMessage.type) {
-      case "welcome":
-        return <Target className="h-5 w-5 text-blue-500" />
-      case "continue":
-        return <Play className="h-5 w-5 text-green-500" />
-      case "streak":
-        return <Zap className="h-5 w-5 text-orange-500" />
-      case "inactive":
-        return <Clock className="h-5 w-5 text-amber-500" />
-      default:
-        return <Calendar className="h-5 w-5 text-primary" />
+      case "welcome":  return <Target className="h-4 w-4 text-indigo-400" />
+      case "continue": return <Play   className="h-4 w-4 text-emerald-400" />
+      case "streak":   return <Zap    className="h-4 w-4 text-amber-400" />
+      case "inactive": return <Clock  className="h-4 w-4 text-amber-400" />
+      default:         return <Calendar className="h-4 w-4 text-indigo-400" />
     }
   }
 
-  const getBorderColor = () => {
+  const getBorder = () => {
     switch (reminderMessage.type) {
-      case "welcome":
-        return "border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800"
-      case "continue":
-        return "border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800"
-      case "streak":
-        return "border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-800"
-      case "inactive":
-        return "border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800"
-      default:
-        return "border-primary/20 bg-primary/5"
+      case "welcome":  return "border-indigo-500/20 bg-indigo-500/5"
+      case "continue": return "border-emerald-500/20 bg-emerald-500/5"
+      case "streak":   return "border-amber-500/20 bg-amber-500/5"
+      case "inactive": return "border-amber-500/20 bg-amber-500/5"
+      default:         return "border-indigo-500/20 bg-indigo-500/5"
     }
   }
 
   return (
-    <Card
+    <div
       className={cn(
-        "enhanced-card border-2 transition-all duration-300 animate-in slide-in-from-top-2",
-        getBorderColor(),
+        "flex items-start gap-3 p-4 rounded-xl border transition-all duration-200",
+        getBorder(),
       )}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 mt-0.5">{getIcon()}</div>
+      <div className="mt-0.5 shrink-0">{getIcon()}</div>
 
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-sm md:text-base mb-1 enhanced-heading">{reminderMessage.title}</h3>
-            <p className="text-sm text-muted-foreground mb-3 leading-relaxed enhanced-text">
-              {reminderMessage.description}
-            </p>
-
-            {reminderMessage.action && (
-              <div className="flex items-center gap-2">
-                <Button size="sm" onClick={handleAction} className="h-8 px-3 text-xs enhanced-button">
-                  {reminderMessage.action}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={dismissReminder}
-                  className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Maybe later
-                </Button>
-              </div>
-            )}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-white mb-0.5">{reminderMessage.title}</p>
+        <p className="text-xs text-[#a1a1aa] leading-relaxed mb-3">
+          {reminderMessage.description}
+        </p>
+        {reminderMessage.action && (
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="h-7 px-2.5 text-xs bg-indigo-500 hover:bg-indigo-600 text-white"
+              onClick={() => { reminderMessage.actionFn?.(); dismiss() }}
+            >
+              {reminderMessage.action}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={dismiss}
+              className="h-7 px-2 text-xs text-[#52525b] hover:text-[#a1a1aa]"
+            >
+              Maybe later
+            </Button>
           </div>
+        )}
+      </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={dismissReminder}
-            className="h-6 w-6 text-muted-foreground hover:text-foreground flex-shrink-0"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={dismiss}
+        className="h-6 w-6 text-[#52525b] hover:text-[#a1a1aa] shrink-0"
+      >
+        <X className="h-3.5 w-3.5" />
+      </Button>
+    </div>
   )
 }

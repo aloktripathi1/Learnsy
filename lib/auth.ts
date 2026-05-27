@@ -1,46 +1,9 @@
-"use client"
+// Placeholder — will be replaced in Step 4 with full Auth.js v5 config
+// Exports a minimal stub so the rest of the codebase compiles
 
-import { useUser, useClerk } from "@clerk/nextjs"
-import { useMemo } from "react"
+import type { Session } from "next-auth"
 
-// Helper hook for compatibility with existing code
-export function useAuth() {
-  const { user: clerkUser, isLoaded } = useUser()
-  const clerk = useClerk()
-
-  const handleSignIn = async () => {
-    try {
-      // Use absolute URL for redirect
-      const redirectUrl = `${window.location.origin}/dashboard`
-      
-      await clerk.redirectToSignIn({
-        redirectUrl,
-      })
-    } catch (error) {
-      console.error("Sign-in error:", error)
-      throw error
-    }
-  }
-
-  const user = useMemo(() => {0
-    return clerkUser
-      ? {
-          id: clerkUser.id,
-          email: clerkUser.primaryEmailAddress?.emailAddress || "",
-          user_metadata: {
-            full_name: clerkUser.fullName || "",
-            avatar_url: clerkUser.imageUrl || "",
-          },
-        }
-      : null
-  }, [clerkUser?.id, clerkUser?.primaryEmailAddress?.emailAddress, clerkUser?.fullName, clerkUser?.imageUrl])
-
-  return {
-    user,
-    loading: !isLoaded,
-    signIn: handleSignIn,
-    signInWithGoogle: handleSignIn,
-    signOut: () => clerk.signOut(),
-    error: null,
-  }
+// Stub — returns null session until Step 4 wires up the real config
+export async function auth(): Promise<Session | null> {
+  return null
 }

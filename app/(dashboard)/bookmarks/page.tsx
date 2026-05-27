@@ -1,14 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Bookmark, Search, Play, Trash2, Clock } from "lucide-react"
-import { useAuth } from "@/lib/auth"
+import { useSession } from "next-auth/react"
 import { getBookmarksAction, updateProgressAction } from "@/app/actions/courses"
+import { toast } from "sonner"
 
 interface BookmarkItem {
   id: string
@@ -28,87 +27,72 @@ interface BookmarkItem {
   }
 }
 
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+function BookmarkSkeleton() {
+  return (
+    <div className="flex items-start gap-3 p-3 bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg">
+      <div className="skeleton w-16 h-12 rounded flex-shrink-0" />
+      <div className="flex-1 space-y-2">
+        <div className="skeleton h-4 w-3/4 rounded" />
+        <div className="skeleton h-3 w-1/3 rounded" />
+      </div>
+      <div className="flex gap-1 shrink-0">
+        <div className="skeleton h-7 w-14 rounded" />
+        <div className="skeleton h-7 w-7 rounded" />
+      </div>
+    </div>
+  )
+}
+
 export default function BookmarksPage() {
-  const { user } = useAuth()
-  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [filteredBookmarks, setFilteredBookmarks] = useState<BookmarkItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const { data: session } = useSession()
+  const user = session?.user
   const router = useRouter()
 
-  useEffect(() => {
-    if (user) {
-      loadBookmarks()
-    }
-  }, [user?.id, refreshKey])
+  const [bookmarks, setBookmarks]     = useState<BookmarkItem[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState<string | null>(null)
 
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      const filtered = bookmarks.filter(
-        (bookmark) =>
-          bookmark.videos.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          bookmark.videos.courses.title.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-      setFilteredBookmarks(filtered)
-    } else {
-      setFilteredBookmarks(bookmarks)
-    }
-  }, [searchQuery, bookmarks])
-
-  // Listen for bookmark updates from other components
-  useEffect(() => {
-    const handleBookmarksUpdate = () => {
-      console.log("Bookmarks update event received, refreshing...")
-      setRefreshKey((prev) => prev + 1)
-    }
-
-    window.addEventListener("bookmarksUpdated", handleBookmarksUpdate)
-    return () => window.removeEventListener("bookmarksUpdated", handleBookmarksUpdate)
-  }, [])
-
-  const loadBookmarks = async () => {
+  const loadBookmarks = useCallback(async () => {
     if (!user) return
-
+    setError(null)
     try {
-      console.log("Loading bookmarks for user:", user.id)
-      const bookmarksData = await getBookmarksAction()
-      console.log("Raw bookmarks data:", bookmarksData)
-
-      // Filter and map the data to ensure we have valid bookmarks
-      const validBookmarks = bookmarksData
-        .filter((bookmark) => bookmark.bookmarked === true && bookmark.videos)
-        .map((bookmark) => ({
-          ...bookmark,
-          videos: Array.isArray(bookmark.videos) ? bookmark.videos[0] : bookmark.videos,
-        }))
-
-      console.log("Valid bookmarks after processing:", validBookmarks)
-      setBookmarks(validBookmarks)
-      setFilteredBookmarks(validBookmarks)
-    } catch (error) {
-      console.error("Error loading bookmarks:", error)
+      const data = await getBookmarksAction()
+      const valid = (data ?? [])
+        .filter((b) => b.bookmarked === true && b.videos)
+        .map((b) => ({
+          ...b,
+          videos: Array.isArray(b.videos) ? b.videos[0] : b.videos,
+        })) as BookmarkItem[]
+      setBookmarks(valid)
+    } catch {
+      setError("Couldn't load bookmarks.")
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (user) loadBookmarks()
+  }, [user?.id, loadBookmarks])
+
+  useEffect(() => {
+    const handler = () => loadBookmarks()
+    window.addEventListener("bookmarksUpdated", handler)
+    return () => window.removeEventListener("bookmarksUpdated", handler)
+  }, [loadBookmarks])
 
   const removeBookmark = async (bookmark: BookmarkItem) => {
-    if (!user) return
-
+    // Optimistic remove
+    setBookmarks((prev) => prev.filter((b) => b.id !== bookmark.id))
     try {
-      await updateProgressAction({
-        video_id: bookmark.video_id,
-        bookmarked: false,
-      })
-
-      // Refresh the bookmarks list
-      await loadBookmarks()
-
-      // Dispatch event to notify other components
+      await updateProgressAction({ video_id: bookmark.video_id, bookmarked: false })
       window.dispatchEvent(new CustomEvent("bookmarksUpdated"))
-    } catch (error) {
-      console.error("Error removing bookmark:", error)
+      toast.success("Bookmark removed")
+    } catch {
+      setBookmarks((prev) => [...prev, bookmark])
+      toast.error("Couldn't remove bookmark.")
     }
   }
 
@@ -116,130 +100,168 @@ export default function BookmarksPage() {
     router.push(`/study/${bookmark.videos.courses.id}/${bookmark.video_id}`)
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
     })
-  }
 
-  const groupedBookmarks = filteredBookmarks.reduce(
-    (acc, bookmark) => {
-      // Ensure we have valid video and course data
-      if (!bookmark.videos || !bookmark.videos.courses) {
-        console.warn("Bookmark missing video or course data:", bookmark)
-        return acc
-      }
+  const filtered = searchQuery.trim()
+    ? bookmarks.filter(
+        (b) =>
+          b.videos.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          b.videos.courses.title.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    : bookmarks
 
-      const courseTitle = bookmark.videos.courses.title || "Unknown Course"
-      if (!acc[courseTitle]) {
-        acc[courseTitle] = []
-      }
-      acc[courseTitle].push(bookmark)
-      return acc
-    },
-    {} as Record<string, BookmarkItem[]>,
-  )
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="loading-spinner" />
-      </div>
-    )
-  }
+  const grouped = filtered.reduce<Record<string, BookmarkItem[]>>((acc, b) => {
+    if (!b.videos?.courses) return acc
+    const key = b.videos.courses.title ?? "Unknown Course"
+    acc[key] = acc[key] ?? []
+    acc[key].push(b)
+    return acc
+  }, {})
 
   return (
-    <div className="flex-1 space-y-4 sm:space-y-8 p-4 sm:p-8 pb-20 md:pb-8">
+    <div className="flex-1 max-w-3xl mx-auto w-full space-y-6 p-4 md:p-8 pb-24 md:pb-8">
+
       {/* Header */}
-      <div className="space-y-2">
-        <h1 className="responsive-heading font-bold tracking-tight">Bookmarks</h1>
-        <p className="text-muted-foreground responsive-text">Your saved videos for quick access</p>
+      <div>
+        <h1 className="text-2xl font-bold text-white tracking-tight">Bookmarks</h1>
+        <p className="text-[#a1a1aa] text-sm mt-1">
+          Your saved videos for quick access
+        </p>
       </div>
 
       {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#52525b]" />
         <Input
-          placeholder="Search bookmarks..."
+          placeholder="Search bookmarks…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 text-base" // Prevents zoom on iOS
+          className="pl-9 h-9 bg-[#0a0a0a] border-[#1a1a1a] text-white placeholder:text-[#52525b] focus:border-indigo-500/50 text-sm"
         />
       </div>
 
-      {/* Stats */}
-      <div className="flex flex-wrap items-center gap-4">
-        <Badge variant="secondary" className="text-sm">
-          <Bookmark className="h-3 w-3 mr-1" />
-          {filteredBookmarks.length} bookmarks
-        </Badge>
-        <Badge variant="outline" className="text-sm">
-          {Object.keys(groupedBookmarks).length} courses
-        </Badge>
-      </div>
+      {/* Count */}
+      {!loading && !error && (
+        <p className="text-xs text-[#52525b]">
+          {filtered.length} bookmark{filtered.length !== 1 ? "s" : ""} ·{" "}
+          {Object.keys(grouped).length} course
+          {Object.keys(grouped).length !== 1 ? "s" : ""}
+        </p>
+      )}
 
-      {/* Bookmarks */}
-      {filteredBookmarks.length === 0 ? (
-        <Card className="text-center py-8 sm:py-12 mx-0">
-          <CardContent>
-            <Bookmark className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="responsive-title font-medium mb-2">
-              {bookmarks.length === 0 ? "No bookmarks yet" : "No bookmarks found"}
-            </h3>
-            <p className="text-muted-foreground responsive-text mb-4">
-              {bookmarks.length === 0
-                ? "Bookmark important videos while studying to find them easily later"
-                : "Try adjusting your search terms"}
-            </p>
-            {bookmarks.length === 0 && (
-              <Button onClick={() => router.push("/courses")} className="touch-target">
-                Browse Courses
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-6 sm:space-y-8">
-          {Object.entries(groupedBookmarks).map(([courseTitle, courseBookmarks]) => (
+      {/* Error */}
+      {error && (
+        <div className="flex items-center justify-between p-4 rounded-xl bg-red-950/30 border border-red-900/40">
+          <span className="text-sm text-red-400">{error}</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={loadBookmarks}
+            className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-7 px-2 text-xs"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <BookmarkSkeleton key={i} />
+          ))}
+        </div>
+      )}
+
+      {/* Empty */}
+      {!loading && !error && filtered.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <svg
+            className="w-12 h-12 text-[#2a2a2a] mb-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+            />
+          </svg>
+          <p className="text-[#52525b] text-sm mb-4">
+            {bookmarks.length === 0
+              ? "No bookmarks yet. Bookmark videos while studying to find them here."
+              : "No bookmarks match your search."}
+          </p>
+          {bookmarks.length === 0 && (
+            <Button
+              onClick={() => router.push("/courses")}
+              className="h-9 bg-indigo-500 hover:bg-indigo-600 text-white text-sm"
+            >
+              Browse Courses
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Grouped list */}
+      {!loading && !error && filtered.length > 0 && (
+        <div className="space-y-8">
+          {Object.entries(grouped).map(([courseTitle, courseBookmarks]) => (
             <div key={courseTitle}>
-              <h2 className="responsive-title font-semibold mb-4">{courseTitle}</h2>
-              <div className="grid gap-4">
+              <h2 className="text-xs font-semibold text-[#52525b] uppercase tracking-wider mb-3">
+                {courseTitle}
+              </h2>
+              <div className="space-y-2">
                 {courseBookmarks.map((bookmark) => (
-                  <Card key={bookmark.id} className="hover:shadow-md transition-shadow touch-target">
-                    <CardContent className="p-4">
-                      <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-                        <div className="flex-1 space-y-2 w-full">
-                          <h3 className="font-medium line-clamp-2 responsive-text">{bookmark.videos.title}</h3>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            Bookmarked {formatDate(bookmark.updated_at)}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                          <Button
-                            size="sm"
-                            onClick={() => watchVideo(bookmark)}
-                            className="flex-1 sm:flex-none touch-target"
-                          >
-                            <Play className="h-4 w-4 mr-2" />
-                            Watch
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removeBookmark(bookmark)}
-                            className="touch-target"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <div
+                    key={bookmark.id}
+                    className="flex items-start gap-3 p-3 bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg hover:border-[#2a2a2a] transition-colors duration-150"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={
+                        bookmark.videos.thumbnail ||
+                        "/placeholder.svg?height=48&width=64"
+                      }
+                      alt={bookmark.videos.title}
+                      className="w-16 h-12 object-cover rounded flex-shrink-0"
+                      loading="lazy"
+                    />
+                    <div className="flex-1 min-w-0 space-y-0.5">
+                      <p className="text-sm font-medium text-white line-clamp-2 leading-snug">
+                        {bookmark.videos.title}
+                      </p>
+                      <p className="text-xs text-[#52525b] flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatDate(bookmark.updated_at)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <Button
+                        size="sm"
+                        onClick={() => watchVideo(bookmark)}
+                        className="h-7 px-2.5 text-xs bg-indigo-500 hover:bg-indigo-600 text-white"
+                      >
+                        <Play className="h-3 w-3 mr-1" />
+                        Watch
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeBookmark(bookmark)}
+                        className="h-7 w-7 text-[#52525b] hover:text-red-400 hover:bg-red-950/30"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

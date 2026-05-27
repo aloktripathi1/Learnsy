@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, Loader2 } from "lucide-react"
-import { validatePlaylistUrl } from "@/lib/youtube-server"
+// validatePlaylistUrl will be re-added in Step 6 from lib/youtube.ts
+function validatePlaylistUrl(url: string): { isValid: boolean; error?: string } {
+  if (!url?.trim()) return { isValid: false, error: "Please enter a URL" }
+  if (!url.includes("youtube.com") && !url.includes("youtu.be")) return { isValid: false, error: "Please enter a valid YouTube URL" }
+  if (!url.includes("list=")) return { isValid: false, error: "URL must contain a playlist (list= parameter)" }
+  return { isValid: true }
+}
 
 interface PlaylistUrlInputProps {
   value: string
